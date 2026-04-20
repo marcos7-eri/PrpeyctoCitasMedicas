@@ -233,76 +233,78 @@ export default function CitasAdmin() {
   };
 
   const cambiarEstado = async (cita: CitaItem, nuevoEstado: string) => {
-    try {
-      setProcesandoId(cita.id);
+  try {
+    setProcesandoId(cita.id);
 
-      const updateData: any = { estado: nuevoEstado };
+    const { data, error } = await supabase
+      .from('citas')
+      .update({ estado: nuevoEstado })
+      .eq('id', cita.id)
+      .select();
 
-      if (nuevoEstado !== 'cancelada') {
-        updateData.motivo_cancelacion = null;
-      }
+    console.log('UPDATE CITA DATA:', data);
+    console.log('UPDATE CITA ERROR:', error);
 
-      const { error } = await supabase
-        .from('citas')
-        .update(updateData)
-        .eq('id', cita.id);
-
-      if (error) {
-        alert('No se pudo actualizar la cita: ' + error.message);
-        return;
-      }
-
-      await cargarCitas();
-
-      if (citaDetalle && citaDetalle.id === cita.id) {
-        setCitaDetalle({
-          ...citaDetalle,
-          estado: nuevoEstado,
-          motivo_cancelacion: nuevoEstado === 'cancelada' ? citaDetalle.motivo_cancelacion : null,
-        });
-      }
-    } catch {
-      alert('Ocurrió un error al actualizar la cita');
-    } finally {
-      setProcesandoId(null);
+    if (error) {
+      alert('No se pudo actualizar la cita: ' + error.message);
+      return;
     }
-  };
 
+    await cargarCitas();
+
+    if (citaDetalle && citaDetalle.id === cita.id) {
+      setCitaDetalle({
+        ...citaDetalle,
+        estado: nuevoEstado,
+      });
+    }
+  } catch (e) {
+    console.error(e);
+    alert('Ocurrió un error al actualizar la cita');
+  } finally {
+    setProcesandoId(null);
+  }
+};
   const cancelarCita = async (cita: CitaItem) => {
-    const motivo = window.prompt('Escribe el motivo de cancelación');
-    if (motivo === null) return;
+  const motivo = window.prompt('Escribe el motivo de cancelación');
+  if (motivo === null) return;
 
-    try {
-      setProcesandoId(cita.id);
+  try {
+    setProcesandoId(cita.id);
 
-      const { error } = await supabase
-        .from('citas')
-        .update({
-          estado: 'cancelada',
-          motivo_cancelacion: motivo || null,
-        })
-        .eq('id', cita.id);
+    const { data, error } = await supabase
+      .from('citas')
+      .update({
+        estado: 'cancelada',
+        motivo_cancelacion: motivo || null,
+      })
+      .eq('id', cita.id)
+      .select();
 
-      if (error) {
-        alert('No se pudo cancelar la cita: ' + error.message);
-        return;
-      }
+    console.log('CANCELAR CITA DATA:', data);
+    console.log('CANCELAR CITA ERROR:', error);
 
-      await cargarCitas();
-
-      if (citaDetalle && citaDetalle.id === cita.id) {
-        setCitaDetalle({
-          ...citaDetalle,
-          estado: 'cancelada',
-          motivo_cancelacion: motivo || null,
-        });
-      }
-    } catch {
-      alert('Ocurrió un error al cancelar la cita');
-    } finally {
-      setProcesandoId(null);
+    if (error) {
+      alert('No se pudo cancelar la cita: ' + error.message);
+      return;
     }
-  };
+
+    await cargarCitas();
+
+    if (citaDetalle && citaDetalle.id === cita.id) {
+      setCitaDetalle({
+        ...citaDetalle,
+        estado: 'cancelada',
+        motivo_cancelacion: motivo || null,
+      });
+    }
+  } catch (e) {
+    console.error(e);
+    alert('Ocurrió un error al cancelar la cita');
+  } finally {
+    setProcesandoId(null);
+  }
+};
 
   const citasFiltradas = useMemo(() => {
     const texto = busqueda.toLowerCase();
@@ -328,7 +330,7 @@ export default function CitasAdmin() {
     return {
       total: citas.length,
       pendientes: citas.filter((c) => c.estado === 'pendiente').length,
-      confirmadas: citas.filter((c) => c.estado === 'confirmada').length,
+      confirmados: citas.filter((c) => c.estado === 'confirmado').length,
       canceladas: citas.filter((c) => c.estado === 'cancelada').length,
     };
   }, [citas]);
@@ -352,8 +354,8 @@ export default function CitasAdmin() {
         </div>
 
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Confirmadas</p>
-          <h3 style={styles.cardValor}>{resumen.confirmadas}</h3>
+          <p style={styles.cardTitulo}>confirmados</p>
+          <h3 style={styles.cardValor}>{resumen.confirmados}</h3>
           <p style={styles.cardSubtitulo}>Citas activas</p>
         </div>
 
@@ -381,7 +383,7 @@ export default function CitasAdmin() {
           >
             <option value="todos">Todos los estados</option>
             <option value="pendiente">Pendiente</option>
-            <option value="confirmada">Confirmada</option>
+            <option value="confirmado">confirmado</option>
             <option value="cancelada">Cancelada</option>
             <option value="completada">Completada</option>
           </select>
@@ -456,7 +458,7 @@ export default function CitasAdmin() {
 
                         <button
                           style={localStyles.botonConfirmar}
-                          onClick={() => cambiarEstado(cita, 'confirmada')}
+                          onClick={() => cambiarEstado(cita, 'confirmado')}
                           disabled={procesandoId === cita.id}
                         >
                           Confirmar
@@ -638,7 +640,7 @@ function obtenerBadgeEstado(estado: string): React.CSSProperties {
     return { ...base, background: '#FEF3C7', color: '#B45309' };
   }
 
-  if (estado === 'confirmada') {
+  if (estado === 'confirmado') {
     return { ...base, background: '#DCFCE7', color: '#15803D' };
   }
 
