@@ -10,6 +10,7 @@ export default function Login() {
   const [contrasena, setContrasena] = useState('');
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
+  const [mostrarPassword, setMostrarPassword] = useState(false);
 
   const iniciarSesion = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -66,108 +67,106 @@ export default function Login() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.backgroundDecoration}>
-        <div style={styles.blob1}></div>
-        <div style={styles.blob2}></div>
+      {/* Fondo animado */}
+      <div style={styles.animatedBackground}>
+        <div style={styles.gradientOrb1}></div>
+        <div style={styles.gradientOrb2}></div>
+        <div style={styles.gradientOrb3}></div>
       </div>
 
+      {/* Grid de fondo */}
+      <div style={styles.gridPattern}></div>
+
       <div style={styles.card}>
-        {/* Espacio para el logo de la clínica */}
+        {/* Logo y título */}
         <div style={styles.logoArea}>
-          <div style={styles.logoPlaceholder}>
-            {/* Reemplaza este div con tu imagen de logo */}
-            <img 
-              src="/logo-clinica.png" 
-              alt="Logo Clínica" 
-              style={styles.logoImage}
-              onError={(e) => {
-                // Fallback si no existe la imagen
-                e.currentTarget.style.display = 'none';
-                const parent = e.currentTarget.parentElement;
-                if (parent) {
-                  parent.style.backgroundColor = '#319795';
-                  parent.style.borderRadius = '20px';
-                  const fallback = document.createElement('span');
-                  fallback.textContent = '🏥';
-                  fallback.style.fontSize = '48px';
-                  parent.appendChild(fallback);
-                }
-              }}
-            />
+          <div style={styles.logoWrapper}>
+            <div style={styles.logoCircle}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L15 8H9L12 2Z" fill="#319795" stroke="#319795" strokeWidth="1.5"/>
+                <path d="M12 22L9 16H15L12 22Z" fill="#319795" stroke="#319795" strokeWidth="1.5"/>
+                <rect x="5" y="8" width="14" height="8" rx="2" fill="#319795" opacity="0.8"/>
+                <circle cx="12" cy="12" r="2" fill="white"/>
+              </svg>
+            </div>
           </div>
-          <h1 style={styles.clinicName}>Clínica Salud Total</h1>
+          <h1 style={styles.clinicName}>
+            Clínica<span style={styles.highlight}>Salud Total</span>
+          </h1>
           <p style={styles.systemName}>Sistema de Gestión de Citas Médicas</p>
         </div>
 
-        {/* Formulario de Login - texto en NEGRO */}
+        {/* Formulario */}
         <form onSubmit={iniciarSesion} style={styles.form}>
-          <h2 style={styles.formTitle}>Iniciar sesión</h2>
-          <p style={styles.formSubtitle}>Ingresa tus credenciales para acceder al sistema</p>
+          <div style={styles.headerText}>
+            <h2 style={styles.formTitle}>Bienvenido</h2>
+            <p style={styles.formSubtitle}>Ingresa tus credenciales para continuar</p>
+          </div>
 
           <div style={styles.inputGroup}>
-            <label style={styles.label}>Correo electrónico</label>
-            <div style={styles.inputWrapper}>
-              <svg style={styles.inputIcon} width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M2.5 3.33333H17.5C18.3333 3.33333 19.1667 4.16667 19.1667 5V15C19.1667 15.8333 18.3333 16.6667 17.5 16.6667H2.5C1.66667 16.6667 0.833333 15.8333 0.833333 15V5C0.833333 4.16667 1.66667 3.33333 2.5 3.33333Z" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M19.1667 5L10 11.6667L0.833333 5" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+            <div style={styles.inputContainer}>
               <input
                 type="email"
-                placeholder="usuario@ejemplo.com"
+                placeholder="Correo electrónico"
                 value={correo}
                 onChange={(e) => setCorreo(e.target.value)}
                 style={styles.input}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#319795';
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(49,151,149,0.1)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = '#E2E8F0';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
+                className="input-field"
                 required
               />
+              <svg style={styles.inputIconLeft} width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M2.5 3.33333H17.5C18.3333 3.33333 19.1667 4.16667 19.1667 5V15C19.1667 15.8333 18.3333 16.6667 17.5 16.6667H2.5C1.66667 16.6667 0.833333 15.8333 0.833333 15V5C0.833333 4.16667 1.66667 3.33333 2.5 3.33333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M19.1667 5L10 11.6667L0.833333 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
             </div>
           </div>
 
           <div style={styles.inputGroup}>
-            <label style={styles.label}>Contraseña</label>
-            <div style={styles.inputWrapper}>
-              <svg style={styles.inputIcon} width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M15.8333 9.16667H4.16667C3.24619 9.16667 2.5 9.91286 2.5 10.8333V16.6667C2.5 17.5871 3.24619 18.3333 4.16667 18.3333H15.8333C16.7538 18.3333 17.5 17.5871 17.5 16.6667V10.8333C17.5 9.91286 16.7538 9.16667 15.8333 9.16667Z" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M5.83333 9.16667V5.83333C5.83333 4.72826 6.27232 3.66845 7.05372 2.88705C7.83512 2.10565 8.89493 1.66667 10 1.66667C11.1051 1.66667 12.1649 2.10565 12.9463 2.88705C13.7277 3.66845 14.1667 4.72826 14.1667 5.83333V9.16667" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+            <div style={styles.inputContainer}>
               <input
-                type="password"
-                placeholder="••••••••"
+                type={mostrarPassword ? "text" : "password"}
+                placeholder="Contraseña"
                 value={contrasena}
                 onChange={(e) => setContrasena(e.target.value)}
                 style={styles.input}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#319795';
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(49,151,149,0.1)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = '#E2E8F0';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
+                className="input-field"
                 required
               />
+              <svg style={styles.inputIconLeft} width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M15.8333 9.16667H4.16667C3.24619 9.16667 2.5 9.91286 2.5 10.8333V16.6667C2.5 17.5871 3.24619 18.3333 4.16667 18.3333H15.8333C16.7538 18.3333 17.5 17.5871 17.5 16.6667V10.8333C17.5 9.91286 16.7538 9.16667 15.8333 9.16667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M5.83333 9.16667V5.83333C5.83333 4.72826 6.27232 3.66845 7.05372 2.88705C7.83512 2.10565 8.89493 1.66667 10 1.66667C11.1051 1.66667 12.1649 2.10565 12.9463 2.88705C13.7277 3.66845 14.1667 4.72826 14.1667 5.83333V9.16667" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              <button
+                type="button"
+                onClick={() => setMostrarPassword(!mostrarPassword)}
+                style={styles.passwordToggle}
+              >
+                {mostrarPassword ? (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M12.5 7.5L7.5 12.5M12.5 12.5L7.5 7.5M10 16.6667C5.39763 16.6667 1.66667 10 1.66667 10C1.66667 10 5.39763 3.33333 10 3.33333C14.6024 3.33333 18.3333 10 18.3333 10C18.3333 10 14.6024 16.6667 10 16.6667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M10 12.5C11.3807 12.5 12.5 11.3807 12.5 10C12.5 8.61929 11.3807 7.5 10 7.5C8.61929 7.5 7.5 8.61929 7.5 10C7.5 11.3807 8.61929 12.5 10 12.5Z" stroke="currentColor" strokeWidth="1.5"/>
+                    <path d="M2.5 10C2.5 10 5.39763 3.33333 10 3.33333C14.6024 3.33333 17.5 10 17.5 10C17.5 10 14.6024 16.6667 10 16.6667C5.39763 16.6667 2.5 10 2.5 10Z" stroke="currentColor" strokeWidth="1.5"/>
+                  </svg>
+                )}
+              </button>
             </div>
           </div>
 
           <div style={styles.optionsRow}>
             <label style={styles.checkboxLabel}>
               <input type="checkbox" style={styles.checkbox} />
-              <span style={styles.checkboxText}>Recordarme</span>
+              <span style={styles.checkboxText}>Recordar sesión</span>
             </label>
             <a href="#" style={styles.forgotLink}>¿Olvidaste tu contraseña?</a>
           </div>
 
           {error && (
             <div style={styles.errorContainer}>
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M10 6.66667V10M10 13.3333H10.0083M18.3333 10C18.3333 14.6024 14.6024 18.3333 10 18.3333C5.39763 18.3333 1.66667 14.6024 1.66667 10C1.66667 5.39763 5.39763 1.66667 10 1.66667C14.6024 1.66667 18.3333 5.39763 18.3333 10Z" stroke="#E53E3E" strokeWidth="1.5" strokeLinecap="round"/>
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                <path d="M10 6.66667V10M10 13.3333H10.0083M18.3333 10C18.3333 14.6024 14.6024 18.3333 10 18.3333C5.39763 18.3333 1.66667 14.6024 1.66667 10C1.66667 5.39763 5.39763 1.66667 10 1.66667C14.6024 1.66667 18.3333 5.39763 18.3333 10Z" stroke="#E53E3E" strokeWidth="1.5"/>
               </svg>
               <p style={styles.errorText}>{error}</p>
             </div>
@@ -180,18 +179,7 @@ export default function Login() {
               ...(cargando ? styles.buttonDisabled : {})
             }}
             disabled={cargando}
-            onMouseEnter={(e) => {
-              if (!cargando) {
-                e.currentTarget.style.backgroundColor = '#267B79';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!cargando) {
-                e.currentTarget.style.backgroundColor = '#319795';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }
-            }}
+            className="submit-button"
           >
             {cargando ? (
               <span style={styles.loadingWrapper}>
@@ -199,11 +187,91 @@ export default function Login() {
                 Ingresando...
               </span>
             ) : (
-              'Ingresar al sistema'
+              'Iniciar sesión'
             )}
           </button>
+
+          <div style={styles.footer}>
+            <p style={styles.footerText}>
+              ¿Necesitas ayuda? <a href="#" style={styles.footerLink}>Contacta con soporte</a>
+            </p>
+          </div>
         </form>
       </div>
+
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(5deg); }
+        }
+        
+        @keyframes pulse {
+          0%, 100% { opacity: 0.5; transform: scale(1); }
+          50% { opacity: 0.8; transform: scale(1.05); }
+        }
+        
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .input-field {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .input-field:focus {
+          transform: translateY(-1px);
+        }
+        
+        .submit-button {
+          position: relative;
+          overflow: hidden;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .submit-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 25px -5px rgba(49,151,149,0.3);
+        }
+        
+        .submit-button:active {
+          transform: translateY(0);
+        }
+        
+        .submit-button::before {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 0;
+          height: 0;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.3);
+          transform: translate(-50%, -50%);
+          transition: width 0.6s, height 0.6s;
+        }
+        
+        .submit-button:active::before {
+          width: 300px;
+          height: 300px;
+        }
+        
+        @keyframes gradientShift {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, -30px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+      `}</style>
     </div>
   );
 }
@@ -221,126 +289,167 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     fontFamily: "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    background: 'linear-gradient(135deg, #F7F9FC 0%, #E2E8F0 100%)',
+    background: '#0A0F1C',
+    overflow: 'hidden',
   },
-  backgroundDecoration: {
+  animatedBackground: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     overflow: 'hidden',
-    zIndex: 0,
   },
-  blob1: {
+  gradientOrb1: {
     position: 'absolute',
-    top: '-20%',
-    right: '-10%',
+    top: '-10%',
+    right: '-5%',
     width: '500px',
     height: '500px',
     borderRadius: '50%',
-    background: 'linear-gradient(135deg, rgba(49,151,149,0.1) 0%, rgba(10,37,64,0.05) 100%)',
+    background: 'radial-gradient(circle, rgba(49,151,149,0.3) 0%, rgba(49,151,149,0) 70%)',
     filter: 'blur(60px)',
+    animation: 'gradientShift 20s ease-in-out infinite',
   },
-  blob2: {
+  gradientOrb2: {
     position: 'absolute',
-    bottom: '-20%',
-    left: '-10%',
+    bottom: '-10%',
+    left: '-5%',
+    width: '600px',
+    height: '600px',
+    borderRadius: '50%',
+    background: 'radial-gradient(circle, rgba(79,70,229,0.2) 0%, rgba(79,70,229,0) 70%)',
+    filter: 'blur(60px)',
+    animation: 'gradientShift 15s ease-in-out infinite reverse',
+  },
+  gradientOrb3: {
+    position: 'absolute',
+    top: '40%',
+    left: '30%',
     width: '400px',
     height: '400px',
     borderRadius: '50%',
-    background: 'linear-gradient(225deg, rgba(49,151,149,0.08) 0%, rgba(10,37,64,0.03) 100%)',
-    filter: 'blur(50px)',
+    background: 'radial-gradient(circle, rgba(236,72,153,0.1) 0%, rgba(236,72,153,0) 70%)',
+    filter: 'blur(60px)',
+    animation: 'gradientShift 25s ease-in-out infinite',
+  },
+  gridPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+    backgroundSize: '50px 50px',
+    pointerEvents: 'none',
   },
   card: {
     position: 'relative',
     zIndex: 2,
     width: '100%',
-    maxWidth: '480px',
-    background: '#FFFFFF',
+    maxWidth: '460px',
+    background: 'rgba(20, 24, 35, 0.8)',
+    backdropFilter: 'blur(20px)',
     borderRadius: '32px',
     padding: '48px 40px',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    animation: 'slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
   },
   logoArea: {
     textAlign: 'center',
     marginBottom: '40px',
   },
-  logoPlaceholder: {
-    width: '80px',
-    height: '80px',
-    margin: '0 auto 20px',
+  logoWrapper: {
+    marginBottom: '20px',
+    display: 'flex',
+    justifyContent: 'center',
+  },
+  logoCircle: {
+    width: '70px',
+    height: '70px',
+    background: 'linear-gradient(135deg, rgba(49,151,149,0.2) 0%, rgba(49,151,149,0.1) 100%)',
+    borderRadius: '24px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  logoImage: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'contain',
+    border: '1px solid rgba(49,151,149,0.3)',
+    animation: 'float 3s ease-in-out infinite',
   },
   clinicName: {
-    fontSize: '24px',
+    fontSize: '26px',
     fontWeight: '700',
-    color: '#0A2540',
+    color: '#FFFFFF',
     marginBottom: '8px',
     letterSpacing: '-0.02em',
   },
+  highlight: {
+    color: '#319795',
+  },
   systemName: {
-    fontSize: '14px',
-    color: '#64748B',
+    fontSize: '13px',
+    color: '#94A3B8',
     margin: 0,
   },
   form: {
     width: '100%',
   },
+  headerText: {
+    textAlign: 'center',
+    marginBottom: '32px',
+  },
   formTitle: {
     fontSize: '28px',
     fontWeight: '700',
-    color: '#1A202C',
+    color: '#FFFFFF',
     marginBottom: '8px',
-    textAlign: 'center',
     letterSpacing: '-0.02em',
   },
   formSubtitle: {
     fontSize: '14px',
-    color: '#4A5568',
-    marginBottom: '32px',
-    textAlign: 'center',
+    color: '#94A3B8',
+    margin: 0,
   },
   inputGroup: {
-    marginBottom: '24px',
+    marginBottom: '20px',
   },
-  label: {
-    display: 'block',
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#1E293B',
-    marginBottom: '8px',
-  },
-  inputWrapper: {
+  inputContainer: {
     position: 'relative',
   },
-  inputIcon: {
+  inputIconLeft: {
     position: 'absolute',
     left: '14px',
     top: '50%',
     transform: 'translateY(-50%)',
     pointerEvents: 'none',
+    color: '#64748B',
   },
   input: {
     width: '100%',
-    padding: '14px 12px 14px 44px',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '14px',
-    fontSize: '15px',
+    padding: '14px 14px 14px 44px',
+    background: 'rgba(15, 18, 28, 0.8)',
+    border: '1.5px solid rgba(255,255,255,0.1)',
+    borderRadius: '16px',
+    fontSize: '14px',
     outline: 'none',
-    transition: 'all 0.2s ease',
+    transition: 'all 0.3s ease',
     boxSizing: 'border-box',
     fontFamily: 'inherit',
-    backgroundColor: '#FFFFFF',
-    color: '#1A202C',
+    color: '#FFFFFF',
+  },
+  passwordToggle: {
+    position: 'absolute',
+    right: '14px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#64748B',
   },
   optionsRow: {
     display: 'flex',
@@ -355,8 +464,8 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
   },
   checkboxText: {
-    fontSize: '14px',
-    color: '#1A202C',
+    fontSize: '13px',
+    color: '#94A3B8',
   },
   checkbox: {
     width: '16px',
@@ -365,23 +474,24 @@ const styles: Record<string, React.CSSProperties> = {
     accentColor: '#319795',
   },
   forgotLink: {
-    fontSize: '14px',
+    fontSize: '13px',
     color: '#319795',
     textDecoration: 'none',
     fontWeight: '500',
+    transition: 'color 0.2s ease',
   },
   errorContainer: {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
     padding: '12px 16px',
-    background: '#FEF2F2',
-    borderRadius: '14px',
+    background: 'rgba(229,62,62,0.1)',
+    borderRadius: '16px',
     marginBottom: '24px',
-    border: '1px solid #FEE2E2',
+    border: '1px solid rgba(229,62,62,0.2)',
   },
   errorText: {
-    color: '#E53E3E',
+    color: '#F56565',
     fontSize: '13px',
     margin: 0,
     flex: 1,
@@ -389,18 +499,19 @@ const styles: Record<string, React.CSSProperties> = {
   button: {
     width: '100%',
     padding: '14px',
-    background: '#319795',
+    background: 'linear-gradient(135deg, #319795 0%, #267B79 100%)',
     color: '#FFFFFF',
     border: 'none',
-    borderRadius: '14px',
-    fontSize: '16px',
+    borderRadius: '16px',
+    fontSize: '15px',
     fontWeight: '600',
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
     marginBottom: '24px',
+    position: 'relative',
+    overflow: 'hidden',
   },
   buttonDisabled: {
-    opacity: 0.7,
+    opacity: 0.6,
     cursor: 'not-allowed',
   },
   loadingWrapper: {
@@ -417,7 +528,38 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '50%',
     animation: 'spin 0.8s linear infinite',
   },
+  footer: {
+    textAlign: 'center',
+  },
+  footerText: {
+    fontSize: '12px',
+    color: '#64748B',
+    margin: 0,
+  },
+  footerLink: {
+    color: '#319795',
+    textDecoration: 'none',
+    fontWeight: '500',
+    transition: 'color 0.2s ease',
+  },
 };
 
-// Agrega esto a tu archivo CSS global
-// @keyframes spin { to { transform: rotate(360deg); } }
+
+// Agregar estilos para hover states
+const styleSheet = document.createElement("style");
+styleSheet.textContent = `
+  .input-field:hover {
+    border-color: rgba(49,151,149,0.5);
+  }
+  
+  .input-field:focus {
+    border-color: #319795;
+    box-shadow: 0 0 0 3px rgba(49,151,149,0.1);
+  }
+  
+  .forgot-link:hover,
+  .footer-link:hover {
+    color: #4FB6B4;
+  }
+`;
+document.head.appendChild(styleSheet);
