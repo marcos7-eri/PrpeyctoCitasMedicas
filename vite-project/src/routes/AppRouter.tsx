@@ -18,7 +18,13 @@ import AuditoriaAdmin from '../pages/Admin/AuditoriaAdmin';
 import PerfilAdmin from '../pages/Admin/PerfilAdmin';
 
 // Doctor
-import DashboardDoctor from '../pages/doctor/DashboardDoctor';
+import DashboardDoctor from '../pages/doctor/DashboardDoctor'
+import HorariosDoctor from '../pages/doctor/HorariosDoctor'
+import CitasDoctor from '../pages/doctor/CitasDoctor'
+import HistorialDoctor from '../pages/doctor/HistorialDoctor'
+import NotificacionesDoctor from '../pages/doctor/NotificacionesDoctor'
+import PerfilDoctor from '../pages/doctor/PerfilDoctor';
+import PacientesDoctor from '../pages/doctor/PacientesDoctor';
 
 function Paciente() {
   const { usuario, cerrarSesion } = useAuth();
@@ -135,6 +141,54 @@ export default function AppRouter() {
           element={
             <ProtectedRoute rolPermitido="doctor">
               <DashboardDoctor />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/doctor/horarios"
+          element={
+            <ProtectedRoute rolPermitido="doctor">
+              <HorariosDoctor />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/doctor/citas"
+          element={
+            <ProtectedRoute rolPermitido="doctor">
+              <CitasDoctor />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/doctor/historial"
+          element={
+            <ProtectedRoute rolPermitido="doctor">
+              <HistorialDoctor />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/doctor/notificaciones"
+          element={
+            <ProtectedRoute rolPermitido="doctor">
+              <NotificacionesDoctor />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/doctor/perfil"
+          element={
+            <ProtectedRoute rolPermitido="doctor">
+              <PerfilDoctor />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/doctor/pacientes"
+          element={
+            <ProtectedRoute rolPermitido="doctor">
+              <PacientesDoctor />
             </ProtectedRoute>
           }
         />

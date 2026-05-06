@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import AdminLayout, { styles } from './AdminLayout';
+import AdminLayout from './AdminLayout';
+import { adminStyles as styles } from './admin';
 import { supabase } from '../../lib/supabase';
 
 interface PerfilBasico {
@@ -233,78 +234,71 @@ export default function CitasAdmin() {
   };
 
   const cambiarEstado = async (cita: CitaItem, nuevoEstado: string) => {
-  try {
-    setProcesandoId(cita.id);
+    try {
+      setProcesandoId(cita.id);
 
-    const { data, error } = await supabase
-      .from('citas')
-      .update({ estado: nuevoEstado })
-      .eq('id', cita.id)
-      .select();
+      const { error } = await supabase
+        .from('citas')
+        .update({ estado: nuevoEstado })
+        .eq('id', cita.id);
 
-    console.log('UPDATE CITA DATA:', data);
-    console.log('UPDATE CITA ERROR:', error);
+      if (error) {
+        alert('No se pudo actualizar la cita: ' + error.message);
+        return;
+      }
 
-    if (error) {
-      alert('No se pudo actualizar la cita: ' + error.message);
-      return;
+      await cargarCitas();
+
+      if (citaDetalle && citaDetalle.id === cita.id) {
+        setCitaDetalle({
+          ...citaDetalle,
+          estado: nuevoEstado,
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Ocurrió un error al actualizar la cita');
+    } finally {
+      setProcesandoId(null);
     }
+  };
 
-    await cargarCitas();
-
-    if (citaDetalle && citaDetalle.id === cita.id) {
-      setCitaDetalle({
-        ...citaDetalle,
-        estado: nuevoEstado,
-      });
-    }
-  } catch (e) {
-    console.error(e);
-    alert('Ocurrió un error al actualizar la cita');
-  } finally {
-    setProcesandoId(null);
-  }
-};
   const cancelarCita = async (cita: CitaItem) => {
-  const motivo = window.prompt('Escribe el motivo de cancelación');
-  if (motivo === null) return;
+    const motivo = window.prompt('Escribe el motivo de cancelación');
+    if (motivo === null) return;
 
-  try {
-    setProcesandoId(cita.id);
+    try {
+      setProcesandoId(cita.id);
 
-    const { data, error } = await supabase
-      .from('citas')
-      .update({
-        estado: 'cancelada',
-        motivo_cancelacion: motivo || null,
-      })
-      .eq('id', cita.id)
-      .select();
+      const { error } = await supabase
+        .from('citas')
+        .update({
+          estado: 'cancelada',
+          motivo_cancelacion: motivo || null,
+        })
+        .eq('id', cita.id);
 
-    console.log('CANCELAR CITA DATA:', data);
-    console.log('CANCELAR CITA ERROR:', error);
+      if (error) {
+        alert('No se pudo cancelar la cita: ' + error.message);
+        return;
+      }
 
-    if (error) {
-      alert('No se pudo cancelar la cita: ' + error.message);
-      return;
+      await cargarCitas();
+
+      if (citaDetalle && citaDetalle.id === cita.id) {
+        setCitaDetalle({
+          ...citaDetalle,
+          estado: 'cancelada',
+          motivo_cancelacion: motivo || null,
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Ocurrió un error al cancelar la cita');
+    } finally {
+      setProcesandoId(null);
     }
-
-    await cargarCitas();
-
-    if (citaDetalle && citaDetalle.id === cita.id) {
-      setCitaDetalle({
-        ...citaDetalle,
-        estado: 'cancelada',
-        motivo_cancelacion: motivo || null,
-      });
-    }
-  } catch (e) {
-    console.error(e);
-    alert('Ocurrió un error al cancelar la cita');
-  } finally {
-    setProcesandoId(null);
-  }
-};
+  };
 
   const citasFiltradas = useMemo(() => {
     const texto = busqueda.toLowerCase();
@@ -335,150 +329,194 @@ export default function CitasAdmin() {
     };
   }, [citas]);
 
+  const getEstadoBadge = (estado: string): React.CSSProperties => {
+    if (estado === 'pendiente') return styles.badgePendiente;
+    if (estado === 'confirmado') return styles.badgeConfirmado;
+    if (estado === 'cancelada') return styles.badgeCancelada;
+    if (estado === 'completada') return styles.badgeCompletada;
+    return styles.badgePendiente;
+  };
+
+  const getEstadoTexto = (estado: string): string => {
+    if (estado === 'pendiente') return 'PENDIENTE';
+    if (estado === 'confirmado') return 'CONFIRMADA';
+    if (estado === 'cancelada') return 'CANCELADA';
+    if (estado === 'completada') return 'COMPLETADA';
+    return estado.toUpperCase();
+  };
+
   return (
     <AdminLayout
-      titulo="Citas"
+      titulo="Citas Médicas"
       subtitulo="Gestión general de citas médicas"
     >
-      <section style={styles.gridCards}>
+      {/* Cards de resumen */}
+      <div style={styles.cardsGrid}>
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Total citas</p>
-          <h3 style={styles.cardValor}>{resumen.total}</h3>
-          <p style={styles.cardSubtitulo}>Citas registradas</p>
+          <p style={styles.cardTitle}>Total citas</p>
+          <h3 style={styles.cardValue}>{resumen.total}</h3>
+          <p style={styles.cardSubtitle}>Citas registradas</p>
         </div>
 
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Pendientes</p>
-          <h3 style={styles.cardValor}>{resumen.pendientes}</h3>
-          <p style={styles.cardSubtitulo}>Por confirmar</p>
+          <p style={styles.cardTitle}>Pendientes</p>
+          <h3 style={styles.cardValue}>{resumen.pendientes}</h3>
+          <p style={styles.cardSubtitle}>Por confirmar</p>
         </div>
 
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>confirmados</p>
-          <h3 style={styles.cardValor}>{resumen.confirmados}</h3>
-          <p style={styles.cardSubtitulo}>Citas activas</p>
+          <p style={styles.cardTitle}>Confirmadas</p>
+          <h3 style={styles.cardValue}>{resumen.confirmados}</h3>
+          <p style={styles.cardSubtitle}>Citas activas</p>
         </div>
 
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Canceladas</p>
-          <h3 style={styles.cardValor}>{resumen.canceladas}</h3>
-          <p style={styles.cardSubtitulo}>No vigentes</p>
+          <p style={styles.cardTitle}>Canceladas</p>
+          <h3 style={styles.cardValue}>{resumen.canceladas}</h3>
+          <p style={styles.cardSubtitle}>No vigentes</p>
         </div>
-      </section>
+      </div>
 
-      <section style={localStyles.filtrosBox}>
-        <div style={localStyles.filtrosFila}>
+      {/* Filtros */}
+      <div style={styles.filtersBox}>
+        <div style={styles.filtersRow}>
           <input
             type="text"
-            placeholder="Buscar por paciente, doctor o motivo"
+            placeholder="Buscar por paciente, doctor o motivo..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            style={localStyles.input}
+            style={styles.input}
           />
 
           <select
             value={filtroEstado}
             onChange={(e) => setFiltroEstado(e.target.value)}
-            style={localStyles.select}
+            style={styles.select}
           >
             <option value="todos">Todos los estados</option>
             <option value="pendiente">Pendiente</option>
-            <option value="confirmado">confirmado</option>
+            <option value="confirmado">Confirmado</option>
             <option value="cancelada">Cancelada</option>
             <option value="completada">Completada</option>
           </select>
 
-          <button style={styles.botonSecundario} onClick={cargarCitas}>
+          <button style={styles.btnSecondary} onClick={cargarCitas}>
             Recargar
           </button>
 
-          <button style={styles.botonPrincipal} onClick={abrirModalNueva}>
-            Nueva cita
+          <button style={styles.btnPrimary} onClick={abrirModalNueva}>
+            + Nueva cita
           </button>
         </div>
-      </section>
+      </div>
 
-      <section style={styles.tablaBox}>
-        <div style={styles.tablaHeader}>
-          <h3 style={styles.tablaTitulo}>Lista de citas</h3>
+      {/* Tabla de citas */}
+      <div style={styles.tableBox}>
+        <div style={styles.tableHeader}>
+          <h3 style={styles.tableTitle}>Lista de citas</h3>
         </div>
 
         {cargando ? (
-          <div style={localStyles.estadoBox}>
-            <p style={styles.emptyStateText}>Cargando citas...</p>
-          </div>
+          <div style={styles.emptyState}>Cargando citas...</div>
         ) : error ? (
-          <div style={localStyles.estadoBox}>
-            <p style={{ ...styles.emptyStateText, color: '#dc2626' }}>{error}</p>
-          </div>
+          <div style={{ ...styles.emptyState, color: '#F87171' }}>{error}</div>
         ) : citasFiltradas.length === 0 ? (
-          <div style={localStyles.estadoBox}>
-            <p style={styles.emptyStateText}>No se encontraron citas</p>
-          </div>
+          <div style={styles.emptyState}>No se encontraron citas</div>
         ) : (
-          <div style={localStyles.tablaResponsive}>
-            <table style={localStyles.tabla}>
+          <div style={styles.tableResponsive}>
+            <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={localStyles.th}>Paciente</th>
-                  <th style={localStyles.th}>Doctor</th>
-                  <th style={localStyles.th}>Fecha</th>
-                  <th style={localStyles.th}>Hora</th>
-                  <th style={localStyles.th}>Motivo</th>
-                  <th style={localStyles.th}>Estado</th>
-                  <th style={localStyles.th}>Acciones</th>
+                  <th style={styles.th}>Paciente</th>
+                  <th style={styles.th}>Doctor</th>
+                  <th style={styles.th}>Fecha</th>
+                  <th style={styles.th}>Hora</th>
+                  <th style={styles.th}>Motivo</th>
+                  <th style={styles.th}>Estado</th>
+                  <th style={styles.th}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {citasFiltradas.map((cita) => (
                   <tr key={cita.id}>
-                    <td style={localStyles.td}>
-                      {cita.pacientes?.perfiles?.nombre_completo || 'Sin paciente'}
+                    <td style={styles.td}>
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{cita.pacientes?.perfiles?.nombre_completo || '—'}</div>
+                        <div style={{ fontSize: '11px', color: '#94A3B8' }}>{cita.pacientes?.perfiles?.correo || ''}</div>
+                      </div>
                     </td>
-                    <td style={localStyles.td}>
-                      {cita.doctores?.perfiles?.nombre_completo || 'Sin doctor'}
+                    <td style={styles.td}>
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{cita.doctores?.perfiles?.nombre_completo || '—'}</div>
+                        <div style={{ fontSize: '11px', color: '#94A3B8' }}>{cita.doctores?.especialidades?.nombre || ''}</div>
+                      </div>
                     </td>
-                    <td style={localStyles.td}>{cita.fecha}</td>
-                    <td style={localStyles.td}>
-                      {cita.hora_inicio}
-                      {cita.hora_fin ? ` - ${cita.hora_fin}` : ''}
+                    <td style={styles.td}>
+                      <div style={{ fontSize: '13px' }}>
+                        {new Date(cita.fecha).toLocaleDateString('es-ES', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </div>
                     </td>
-                    <td style={localStyles.td}>{cita.motivo || 'Sin motivo'}</td>
-                    <td style={localStyles.td}>
-                      <span style={obtenerBadgeEstado(cita.estado)}>{cita.estado}</span>
+                    <td style={styles.td}>
+                      <span style={{ 
+                        background: 'rgba(255,255,255,0.05)', 
+                        padding: '4px 8px', 
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontFamily: 'monospace'
+                      }}>
+                        {cita.hora_inicio.substring(0, 5)}
+                        {cita.hora_fin ? ` - ${cita.hora_fin.substring(0, 5)}` : ''}
+                      </span>
                     </td>
-                    <td style={localStyles.td}>
-                      <div style={localStyles.accionesFila}>
-                        <button
-                          style={localStyles.botonVer}
-                          onClick={() => setCitaDetalle(cita)}
-                        >
+                    <td style={styles.td}>
+                      <div style={{ maxWidth: '180px', whiteSpace: 'normal' }}>
+                        {cita.motivo || '—'}
+                      </div>
+                    </td>
+                    <td style={styles.td}>
+                      <span style={getEstadoBadge(cita.estado)}>
+                        {getEstadoTexto(cita.estado)}
+                      </span>
+                    </td>
+                    <td style={styles.td}>
+                      <div style={styles.actionsRow}>
+                        <button style={styles.btnView} onClick={() => setCitaDetalle(cita)}>
                           Ver
                         </button>
 
-                        <button
-                          style={localStyles.botonConfirmar}
-                          onClick={() => cambiarEstado(cita, 'confirmado')}
-                          disabled={procesandoId === cita.id}
-                        >
-                          Confirmar
-                        </button>
+                        {cita.estado === 'pendiente' && (
+                          <button
+                            style={styles.btnEdit}
+                            onClick={() => cambiarEstado(cita, 'confirmado')}
+                            disabled={procesandoId === cita.id}
+                          >
+                            Confirmar
+                          </button>
+                        )}
 
-                        <button
-                          style={localStyles.botonCompletar}
-                          onClick={() => cambiarEstado(cita, 'completada')}
-                          disabled={procesandoId === cita.id}
-                        >
-                          Completar
-                        </button>
+                        {cita.estado === 'confirmado' && (
+                          <button
+                            style={styles.btnPrimary}
+                            onClick={() => cambiarEstado(cita, 'completada')}
+                            disabled={procesandoId === cita.id}
+                          >
+                            Completar
+                          </button>
+                        )}
 
-                        <button
-                          style={localStyles.botonCancelar}
-                          onClick={() => cancelarCita(cita)}
-                          disabled={procesandoId === cita.id}
-                        >
-                          Cancelar
-                        </button>
+                        {(cita.estado === 'pendiente' || cita.estado === 'confirmado') && (
+                          <button
+                            style={styles.btnDelete}
+                            onClick={() => cancelarCita(cita)}
+                            disabled={procesandoId === cita.id}
+                          >
+                            Cancelar
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -487,21 +525,22 @@ export default function CitasAdmin() {
             </table>
           </div>
         )}
-      </section>
+      </div>
 
+      {/* Modal Nueva Cita */}
       {mostrarModalNueva && (
-        <div style={localStyles.modalOverlay}>
-          <div style={localStyles.modal}>
-            <h2 style={localStyles.modalTitulo}>Nueva cita</h2>
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <h2 style={styles.modalTitle}>Nueva cita médica</h2>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Paciente</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Paciente *</label>
               <select
                 value={nuevoPacienteId}
                 onChange={(e) => setNuevoPacienteId(e.target.value)}
-                style={localStyles.select}
+                style={styles.select}
               >
-                <option value="">Seleccione paciente</option>
+                <option value="">Seleccione un paciente</option>
                 {pacientes.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.perfiles?.nombre_completo || 'Sin nombre'} - {p.perfiles?.correo || 'Sin correo'}
@@ -510,112 +549,149 @@ export default function CitasAdmin() {
               </select>
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Doctor</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Doctor *</label>
               <select
                 value={nuevoDoctorId}
                 onChange={(e) => setNuevoDoctorId(e.target.value)}
-                style={localStyles.select}
+                style={styles.select}
               >
-                <option value="">Seleccione doctor</option>
+                <option value="">Seleccione un doctor</option>
                 {doctores.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.perfiles?.nombre_completo || 'Sin nombre'}
-                    {d.especialidades?.nombre ? ` - ${d.especialidades.nombre}` : ''}
+                    {d.especialidades?.nombre ? ` (${d.especialidades.nombre})` : ''}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Fecha</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Fecha *</label>
               <input
                 type="date"
                 value={nuevaFecha}
                 onChange={(e) => setNuevaFecha(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
               />
             </div>
 
-            <div style={localStyles.dobleColumna}>
-              <div style={localStyles.formGrupo}>
-                <label style={localStyles.label}>Hora inicio</label>
+            <div style={styles.rowTwoColumns}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Hora inicio *</label>
                 <input
                   type="time"
                   value={nuevaHoraInicio}
                   onChange={(e) => setNuevaHoraInicio(e.target.value)}
-                  style={localStyles.input}
+                  style={styles.input}
                 />
               </div>
 
-              <div style={localStyles.formGrupo}>
-                <label style={localStyles.label}>Hora fin</label>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Hora fin</label>
                 <input
                   type="time"
                   value={nuevaHoraFin}
                   onChange={(e) => setNuevaHoraFin(e.target.value)}
-                  style={localStyles.input}
+                  style={styles.input}
                 />
               </div>
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Motivo</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Motivo de la consulta</label>
               <input
                 type="text"
                 value={nuevoMotivo}
                 onChange={(e) => setNuevoMotivo(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
+                placeholder="Ej: Dolor de cabeza, revisión anual, etc."
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Notas</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Notas adicionales</label>
               <textarea
                 value={nuevasNotas}
                 onChange={(e) => setNuevasNotas(e.target.value)}
-                style={localStyles.textarea}
+                style={styles.textarea}
+                rows={3}
+                placeholder="Información adicional para el doctor..."
               />
             </div>
 
-            <div style={localStyles.modalAcciones}>
-              <button style={styles.botonSecundario} onClick={cerrarModalNueva}>
+            <div style={styles.modalActions}>
+              <button style={styles.btnSecondary} onClick={cerrarModalNueva}>
                 Cancelar
               </button>
               <button
-                style={styles.botonPrincipal}
+                style={styles.btnPrimary}
                 onClick={crearCita}
                 disabled={guardandoNueva}
               >
-                {guardandoNueva ? 'Guardando...' : 'Crear cita'}
+                {guardandoNueva ? 'Creando...' : 'Crear cita'}
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Modal Detalle Cita */}
       {citaDetalle && (
-        <div style={localStyles.modalOverlay}>
-          <div style={localStyles.modal}>
-            <h2 style={localStyles.modalTitulo}>Detalle de la cita</h2>
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalLarge}>
+            <h2 style={styles.modalTitle}>Detalle de la cita</h2>
 
-            <div style={localStyles.detalleBox}>
-              <p><b>Paciente:</b> {citaDetalle.pacientes?.perfiles?.nombre_completo || 'Sin paciente'}</p>
-              <p><b>Correo paciente:</b> {citaDetalle.pacientes?.perfiles?.correo || 'Sin correo'}</p>
-              <p><b>Doctor:</b> {citaDetalle.doctores?.perfiles?.nombre_completo || 'Sin doctor'}</p>
-              <p><b>Correo doctor:</b> {citaDetalle.doctores?.perfiles?.correo || 'Sin correo'}</p>
-              <p><b>Especialidad:</b> {citaDetalle.doctores?.especialidades?.nombre || 'Sin especialidad'}</p>
-              <p><b>Fecha:</b> {citaDetalle.fecha}</p>
-              <p><b>Hora inicio:</b> {citaDetalle.hora_inicio}</p>
-              <p><b>Hora fin:</b> {citaDetalle.hora_fin || 'Sin hora fin'}</p>
-              <p><b>Estado:</b> {citaDetalle.estado}</p>
-              <p><b>Motivo:</b> {citaDetalle.motivo || 'Sin motivo'}</p>
-              <p><b>Notas:</b> {citaDetalle.notas || 'Sin notas'}</p>
-              <p><b>Motivo cancelación:</b> {citaDetalle.motivo_cancelacion || 'Sin dato'}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              {/* Información del paciente */}
+              <div style={{ 
+                background: 'rgba(49,151,149,0.05)', 
+                padding: '16px', 
+                borderRadius: '16px',
+                borderLeft: '3px solid #319795'
+              }}>
+                <h3 style={{ fontSize: '14px', color: '#319795', margin: '0 0 12px 0' }}>Paciente</h3>
+                <p style={{ margin: '8px 0' }}><strong>Nombre:</strong> {citaDetalle.pacientes?.perfiles?.nombre_completo || '—'}</p>
+                <p style={{ margin: '8px 0' }}><strong>Correo:</strong> {citaDetalle.pacientes?.perfiles?.correo || '—'}</p>
+                <p style={{ margin: '8px 0' }}><strong>Teléfono:</strong> {citaDetalle.pacientes?.perfiles?.telefono || '—'}</p>
+              </div>
+
+              {/* Información del doctor */}
+              <div style={{ 
+                background: 'rgba(59,130,246,0.05)', 
+                padding: '16px', 
+                borderRadius: '16px',
+                borderLeft: '3px solid #3B82F6'
+              }}>
+                <h3 style={{ fontSize: '14px', color: '#3B82F6', margin: '0 0 12px 0' }}>Doctor</h3>
+                <p style={{ margin: '8px 0' }}><strong>Nombre:</strong> {citaDetalle.doctores?.perfiles?.nombre_completo || '—'}</p>
+                <p style={{ margin: '8px 0' }}><strong>Correo:</strong> {citaDetalle.doctores?.perfiles?.correo || '—'}</p>
+                <p style={{ margin: '8px 0' }}><strong>Especialidad:</strong> {citaDetalle.doctores?.especialidades?.nombre || '—'}</p>
+              </div>
             </div>
 
-            <div style={localStyles.modalAcciones}>
-              <button style={styles.botonSecundario} onClick={() => setCitaDetalle(null)}>
+            <div style={{ 
+              background: 'rgba(255,255,255,0.03)', 
+              padding: '16px', 
+              borderRadius: '16px', 
+              marginTop: '16px' 
+            }}>
+              <h3 style={{ fontSize: '14px', color: '#94A3B8', margin: '0 0 12px 0' }}>Detalles de la cita</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <p><strong>Fecha:</strong> {new Date(citaDetalle.fecha).toLocaleDateString('es-ES')}</p>
+                <p><strong>Hora inicio:</strong> {citaDetalle.hora_inicio.substring(0, 5)}</p>
+                {citaDetalle.hora_fin && <p><strong>Hora fin:</strong> {citaDetalle.hora_fin.substring(0, 5)}</p>}
+                <p><strong>Estado:</strong> <span style={getEstadoBadge(citaDetalle.estado)}>{getEstadoTexto(citaDetalle.estado)}</span></p>
+                <p><strong>Motivo:</strong> {citaDetalle.motivo || '—'}</p>
+                <p><strong>Notas:</strong> {citaDetalle.notas || '—'}</p>
+                {citaDetalle.motivo_cancelacion && (
+                  <p><strong>Motivo cancelación:</strong> {citaDetalle.motivo_cancelacion}</p>
+                )}
+              </div>
+            </div>
+
+            <div style={styles.modalActions}>
+              <button style={styles.btnSecondary} onClick={() => setCitaDetalle(null)}>
                 Cerrar
               </button>
             </div>
@@ -625,207 +701,3 @@ export default function CitasAdmin() {
     </AdminLayout>
   );
 }
-
-function obtenerBadgeEstado(estado: string): React.CSSProperties {
-  const base: React.CSSProperties = {
-    display: 'inline-block',
-    padding: '6px 10px',
-    borderRadius: '999px',
-    fontSize: '12px',
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  };
-
-  if (estado === 'pendiente') {
-    return { ...base, background: '#FEF3C7', color: '#B45309' };
-  }
-
-  if (estado === 'confirmado') {
-    return { ...base, background: '#DCFCE7', color: '#15803D' };
-  }
-
-  if (estado === 'cancelada') {
-    return { ...base, background: '#FEE2E2', color: '#B91C1C' };
-  }
-
-  if (estado === 'completada') {
-    return { ...base, background: '#DBEAFE', color: '#1D4ED8' };
-  }
-
-  return { ...base, background: '#E5E7EB', color: '#374151' };
-}
-
-const localStyles: Record<string, React.CSSProperties> = {
-  filtrosBox: {
-    background: '#FFFFFF',
-    borderRadius: '24px',
-    padding: '20px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-  },
-  filtrosFila: {
-    display: 'grid',
-    gridTemplateColumns: '2fr 1fr auto auto',
-    gap: '12px',
-  },
-  dobleColumna: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '12px',
-  },
-  formGrupo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    marginBottom: '16px',
-  },
-  label: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#334155',
-  },
-  input: {
-    width: '100%',
-    padding: '14px 16px',
-    border: '1px solid #CBD5E1',
-    borderRadius: '14px',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    backgroundColor: '#FFFFFF',
-    color: '#0F172A',
-  },
-  select: {
-    width: '100%',
-    padding: '14px 16px',
-    border: '1px solid #CBD5E1',
-    borderRadius: '14px',
-    fontSize: '14px',
-    outline: 'none',
-    backgroundColor: '#FFFFFF',
-    color: '#0F172A',
-    boxSizing: 'border-box',
-  },
-  textarea: {
-    width: '100%',
-    minHeight: '100px',
-    padding: '14px 16px',
-    border: '1px solid #CBD5E1',
-    borderRadius: '14px',
-    fontSize: '14px',
-    outline: 'none',
-    backgroundColor: '#FFFFFF',
-    color: '#0F172A',
-    boxSizing: 'border-box',
-    resize: 'vertical',
-  },
-  estadoBox: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '40px 20px',
-  },
-  tablaResponsive: {
-    overflowX: 'auto',
-  },
-  tabla: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '16px',
-    color: '#64748B',
-    background: '#F8FAFC',
-    fontSize: '13px',
-    fontWeight: '600',
-    borderBottom: '1px solid #E2E8F0',
-  },
-  td: {
-    padding: '16px',
-    borderBottom: '1px solid #F1F5F9',
-    color: '#334155',
-    fontSize: '14px',
-    verticalAlign: 'middle',
-  },
-  accionesFila: {
-    display: 'flex',
-    gap: '8px',
-    flexWrap: 'wrap',
-  },
-  botonVer: {
-    background: '#E0F2FE',
-    color: '#0369A1',
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  botonConfirmar: {
-    background: '#DCFCE7',
-    color: '#15803D',
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  botonCompletar: {
-    background: '#DBEAFE',
-    color: '#1D4ED8',
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  botonCancelar: {
-    background: '#FEE2E2',
-    color: '#B91C1C',
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(15, 23, 42, 0.45)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-    padding: '20px',
-  },
-  modal: {
-    width: '100%',
-    maxWidth: '760px',
-    background: '#FFFFFF',
-    borderRadius: '24px',
-    padding: '24px',
-    boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-    maxHeight: '90vh',
-    overflowY: 'auto',
-  },
-  modalTitulo: {
-    margin: '0 0 20px',
-    fontSize: '22px',
-    fontWeight: '700',
-    color: '#0A2540',
-  },
-  detalleBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-    color: '#334155',
-    fontSize: '14px',
-    lineHeight: 1.7,
-  },
-  modalAcciones: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '12px',
-    marginTop: '20px',
-  },
-};

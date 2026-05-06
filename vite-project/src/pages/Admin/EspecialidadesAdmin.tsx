@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import AdminLayout, { styles } from './AdminLayout';
+import AdminLayout from './AdminLayout';
+import { adminStyles as styles } from './admin';
 import { supabase } from '../../lib/supabase';
 
 interface EspecialidadItem {
@@ -173,106 +174,118 @@ export default function EspecialidadesAdmin() {
 
   return (
     <AdminLayout
-      titulo="Especialidades"
-      subtitulo="Gestión de especialidades médicas"
+      titulo="Especialidades Médicas"
+      subtitulo="Gestión de especialidades médicas del sistema"
     >
-      <section style={styles.gridCards}>
+      {/* Cards de resumen */}
+      <div style={styles.cardsGrid}>
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Total especialidades</p>
-          <h3 style={styles.cardValor}>{especialidades.length}</h3>
-          <p style={styles.cardSubtitulo}>Especialidades registradas</p>
+          <p style={styles.cardTitle}>Total especialidades</p>
+          <h3 style={styles.cardValue}>{especialidades.length}</h3>
+          <p style={styles.cardSubtitle}>Especialidades registradas</p>
         </div>
 
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Resultados filtrados</p>
-          <h3 style={styles.cardValor}>{especialidadesFiltradas.length}</h3>
-          <p style={styles.cardSubtitulo}>Según la búsqueda actual</p>
+          <p style={styles.cardTitle}>Resultados filtrados</p>
+          <h3 style={styles.cardValue}>{especialidadesFiltradas.length}</h3>
+          <p style={styles.cardSubtitle}>Según la búsqueda actual</p>
         </div>
 
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Con descripción</p>
-          <h3 style={styles.cardValor}>
+          <p style={styles.cardTitle}>Con descripción</p>
+          <h3 style={styles.cardValue}>
             {especialidades.filter((e) => e.descripcion && e.descripcion.trim() !== '').length}
           </h3>
-          <p style={styles.cardSubtitulo}>Especialidades documentadas</p>
+          <p style={styles.cardSubtitle}>Especialidades documentadas</p>
         </div>
 
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Sin descripción</p>
-          <h3 style={styles.cardValor}>
+          <p style={styles.cardTitle}>Sin descripción</p>
+          <h3 style={styles.cardValue}>
             {especialidades.filter((e) => !e.descripcion || e.descripcion.trim() === '').length}
           </h3>
-          <p style={styles.cardSubtitulo}>Pendientes de completar</p>
+          <p style={styles.cardSubtitle}>Pendientes de completar</p>
         </div>
-      </section>
+      </div>
 
-      <section style={localStyles.filtrosBox}>
-        <div style={localStyles.filtrosFila}>
+      {/* Filtros */}
+      <div style={styles.filtersBox}>
+        <div style={styles.filtersRow}>
           <input
             type="text"
-            placeholder="Buscar por nombre o descripción"
+            placeholder="Buscar por nombre o descripción..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            style={localStyles.input}
+            style={styles.input}
           />
 
-          <button style={styles.botonSecundario} onClick={cargarEspecialidades}>
+          <button style={styles.btnSecondary} onClick={cargarEspecialidades}>
             Recargar
           </button>
 
-          <button style={styles.botonPrincipal} onClick={abrirModalNuevo}>
-            Nueva especialidad
+          <button style={styles.btnPrimary} onClick={abrirModalNuevo}>
+            + Nueva especialidad
           </button>
         </div>
-      </section>
+      </div>
 
-      <section style={styles.tablaBox}>
-        <div style={styles.tablaHeader}>
-          <h3 style={styles.tablaTitulo}>Lista de especialidades</h3>
+      {/* Tabla de especialidades */}
+      <div style={styles.tableBox}>
+        <div style={styles.tableHeader}>
+          <h3 style={styles.tableTitle}>Lista de especialidades</h3>
         </div>
 
         {cargando ? (
-          <div style={localStyles.estadoBox}>
-            <p style={styles.emptyStateText}>Cargando especialidades...</p>
-          </div>
+          <div style={styles.emptyState}>Cargando especialidades...</div>
         ) : error ? (
-          <div style={localStyles.estadoBox}>
-            <p style={{ ...styles.emptyStateText, color: '#dc2626' }}>{error}</p>
-          </div>
+          <div style={{ ...styles.emptyState, color: '#F87171' }}>{error}</div>
         ) : especialidadesFiltradas.length === 0 ? (
-          <div style={localStyles.estadoBox}>
-            <p style={styles.emptyStateText}>No se encontraron especialidades</p>
-          </div>
+          <div style={styles.emptyState}>No se encontraron especialidades</div>
         ) : (
-          <div style={localStyles.tablaResponsive}>
-            <table style={localStyles.tabla}>
+          <div style={styles.tableResponsive}>
+            <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={localStyles.th}>Nombre</th>
-                  <th style={localStyles.th}>Descripción</th>
-                  <th style={localStyles.th}>Acciones</th>
+                  <th style={styles.th}>Nombre</th>
+                  <th style={styles.th}>Descripción</th>
+                  <th style={styles.th}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {especialidadesFiltradas.map((especialidad) => (
                   <tr key={especialidad.id}>
-                    <td style={localStyles.td}>{especialidad.nombre}</td>
-                    <td style={localStyles.td}>
-                      {especialidad.descripcion || 'Sin descripción'}
+                    <td style={styles.td}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          background: 'linear-gradient(135deg, #319795 0%, #1a5a58 100%)',
+                          borderRadius: '10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          color: '#FFFFFF'
+                        }}>
+                          {especialidad.nombre.charAt(0).toUpperCase()}
+                        </div>
+                        <span style={{ fontWeight: 500 }}>{especialidad.nombre}</span>
+                      </div>
                     </td>
-                    <td style={localStyles.td}>
-                      <div style={localStyles.accionesFila}>
-                        <button
-                          style={localStyles.botonEditar}
-                          onClick={() => abrirEdicion(especialidad)}
-                        >
+                    <td style={styles.td}>
+                      {especialidad.descripcion ? (
+                        <span style={{ color: '#CBD5E1' }}>{especialidad.descripcion}</span>
+                      ) : (
+                        <span style={{ color: '#64748B', fontStyle: 'italic' }}>Sin descripción</span>
+                      )}
+                    </td>
+                    <td style={styles.td}>
+                      <div style={styles.actionsRow}>
+                        <button style={styles.btnEdit} onClick={() => abrirEdicion(especialidad)}>
                           Editar
                         </button>
-
-                        <button
-                          style={localStyles.botonEliminar}
-                          onClick={() => eliminarEspecialidad(especialidad)}
-                        >
+                        <button style={styles.btnDelete} onClick={() => eliminarEspecialidad(especialidad)}>
                           Eliminar
                         </button>
                       </div>
@@ -283,78 +296,84 @@ export default function EspecialidadesAdmin() {
             </table>
           </div>
         )}
-      </section>
+      </div>
 
+      {/* Modal Nueva Especialidad */}
       {mostrarModalNuevo && (
-        <div style={localStyles.modalOverlay}>
-          <div style={localStyles.modal}>
-            <h2 style={localStyles.modalTitulo}>Nueva especialidad</h2>
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <h2 style={styles.modalTitle}>Nueva especialidad médica</h2>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Nombre</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Nombre de la especialidad *</label>
               <input
                 type="text"
                 value={nuevoNombre}
                 onChange={(e) => setNuevoNombre(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
+                placeholder="Ej: Cardiología, Pediatría, Neurología..."
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Descripción</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Descripción</label>
               <textarea
                 value={nuevaDescripcion}
                 onChange={(e) => setNuevaDescripcion(e.target.value)}
-                style={localStyles.textarea}
+                style={styles.textarea}
+                rows={4}
+                placeholder="Describe el alcance de esta especialidad médica..."
               />
             </div>
 
-            <div style={localStyles.modalAcciones}>
-              <button style={styles.botonSecundario} onClick={cerrarModalNuevo}>
+            <div style={styles.modalActions}>
+              <button style={styles.btnSecondary} onClick={cerrarModalNuevo}>
                 Cancelar
               </button>
               <button
-                style={styles.botonPrincipal}
+                style={styles.btnPrimary}
                 onClick={guardarNuevaEspecialidad}
                 disabled={guardandoNuevo}
               >
-                {guardandoNuevo ? 'Guardando...' : 'Crear especialidad'}
+                {guardandoNuevo ? 'Creando...' : 'Crear especialidad'}
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Modal Editar Especialidad */}
       {especialidadEditando && (
-        <div style={localStyles.modalOverlay}>
-          <div style={localStyles.modal}>
-            <h2 style={localStyles.modalTitulo}>Editar especialidad</h2>
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <h2 style={styles.modalTitle}>Editar especialidad</h2>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Nombre</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Nombre *</label>
               <input
                 type="text"
                 value={formNombre}
                 onChange={(e) => setFormNombre(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Descripción</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Descripción</label>
               <textarea
                 value={formDescripcion}
                 onChange={(e) => setFormDescripcion(e.target.value)}
-                style={localStyles.textarea}
+                style={styles.textarea}
+                rows={4}
               />
             </div>
 
-            <div style={localStyles.modalAcciones}>
-              <button style={styles.botonSecundario} onClick={cerrarEdicion}>
+            <div style={styles.modalActions}>
+              <button style={styles.btnSecondary} onClick={cerrarEdicion}>
                 Cancelar
               </button>
               <button
-                style={styles.botonPrincipal}
+                style={styles.btnPrimary}
                 onClick={guardarEdicion}
                 disabled={guardandoEdicion}
               >
@@ -367,136 +386,3 @@ export default function EspecialidadesAdmin() {
     </AdminLayout>
   );
 }
-
-const localStyles: Record<string, React.CSSProperties> = {
-  filtrosBox: {
-    background: '#FFFFFF',
-    borderRadius: '24px',
-    padding: '20px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-  },
-  filtrosFila: {
-    display: 'grid',
-    gridTemplateColumns: '2fr auto auto',
-    gap: '12px',
-  },
-  input: {
-    width: '100%',
-    padding: '14px 16px',
-    border: '1px solid #CBD5E1',
-    borderRadius: '14px',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    backgroundColor: '#FFFFFF',
-    color: '#0F172A',
-  },
-  textarea: {
-    width: '100%',
-    minHeight: '120px',
-    padding: '14px 16px',
-    border: '1px solid #CBD5E1',
-    borderRadius: '14px',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    backgroundColor: '#FFFFFF',
-    color: '#0F172A',
-    resize: 'vertical',
-  },
-  estadoBox: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '40px 20px',
-  },
-  tablaResponsive: {
-    overflowX: 'auto',
-  },
-  tabla: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '16px',
-    color: '#64748B',
-    background: '#F8FAFC',
-    fontSize: '13px',
-    fontWeight: '600',
-    borderBottom: '1px solid #E2E8F0',
-  },
-  td: {
-    padding: '16px',
-    borderBottom: '1px solid #F1F5F9',
-    color: '#334155',
-    fontSize: '14px',
-    verticalAlign: 'middle',
-  },
-  accionesFila: {
-    display: 'flex',
-    gap: '8px',
-    flexWrap: 'wrap',
-  },
-  botonEditar: {
-    background: '#DBEAFE',
-    color: '#1D4ED8',
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  botonEliminar: {
-    background: '#FEE2E2',
-    color: '#B91C1C',
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(15, 23, 42, 0.45)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-    padding: '20px',
-  },
-  modal: {
-    width: '100%',
-    maxWidth: '560px',
-    background: '#FFFFFF',
-    borderRadius: '24px',
-    padding: '24px',
-    boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-    maxHeight: '90vh',
-    overflowY: 'auto',
-  },
-  modalTitulo: {
-    margin: '0 0 20px',
-    fontSize: '22px',
-    fontWeight: '700',
-    color: '#0A2540',
-  },
-  formGrupo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    marginBottom: '16px',
-  },
-  label: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#334155',
-  },
-  modalAcciones: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '12px',
-    marginTop: '20px',
-  },
-};

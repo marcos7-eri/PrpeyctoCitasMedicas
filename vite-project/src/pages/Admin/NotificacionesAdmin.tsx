@@ -1,19 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
-import AdminLayout, { styles } from './AdminLayout';
+import AdminLayout from './AdminLayout';
+import { adminStyles as styles } from './admin';
 import { supabase } from '../../lib/supabase';
 
-interface NotificacionItem {
+interface PerfilRelacionado {
   id: string;
-  perfil_id: string | null;
+  nombre_completo: string;
+  correo: string;
+  rol?: string;
+}
+
+interface NotificacionItem {
+  id: number;
+  usuario_id: string | null;
   titulo: string;
   mensaje: string;
   tipo: string;
-  leida: boolean;
-  creado_en?: string | null;
-  perfiles?: {
-    nombre_completo: string;
-    correo: string;
-  } | null;
+  leido: boolean;
+  fecha_envio?: string | null;
+  perfil?: PerfilRelacionado | null;
 }
 
 interface UsuarioOption {
@@ -30,11 +35,11 @@ export default function NotificacionesAdmin() {
   const [error, setError] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('todos');
-  const [filtroLeida, setFiltroLeida] = useState('todos');
+  const [filtroLeido, setFiltroLeido] = useState('todos');
 
   const [mostrarModalNueva, setMostrarModalNueva] = useState(false);
   const [guardandoNueva, setGuardandoNueva] = useState(false);
-  const [nuevoPerfilId, setNuevoPerfilId] = useState('');
+  const [nuevoUsuarioId, setNuevoUsuarioId] = useState('');
   const [nuevoTitulo, setNuevoTitulo] = useState('');
   const [nuevoMensaje, setNuevoMensaje] = useState('');
   const [nuevoTipo, setNuevoTipo] = useState('general');
@@ -43,7 +48,7 @@ export default function NotificacionesAdmin() {
   const [formTitulo, setFormTitulo] = useState('');
   const [formMensaje, setFormMensaje] = useState('');
   const [formTipo, setFormTipo] = useState('general');
-  const [formLeida, setFormLeida] = useState(false);
+  const [formLeido, setFormLeido] = useState(false);
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
 
   useEffect(() => {
@@ -59,29 +64,58 @@ export default function NotificacionesAdmin() {
       setCargando(true);
       setError('');
 
-      const { data, error } = await supabase
+      const { data: notificacionesData, error: notificacionesError } = await supabase
         .from('notificaciones')
         .select(`
           id,
-          perfil_id,
+          usuario_id,
           titulo,
           mensaje,
           tipo,
-          leida,
-          creado_en,
-          perfiles (
-            nombre_completo,
-            correo
-          )
+          leido,
+          fecha_envio
         `)
-        .order('creado_en', { ascending: false });
+        .order('fecha_envio', { ascending: false });
 
-      if (error) {
-        setError(error.message);
+      if (notificacionesError) {
+        setError(notificacionesError.message);
         return;
       }
 
-      setNotificaciones((data as unknown as NotificacionItem[]) || []);
+      const lista = notificacionesData || [];
+
+      const usuariosIds = [
+        ...new Set(
+          lista
+            .map((item) => item.usuario_id)
+            .filter((id): id is string => !!id)
+        ),
+      ];
+
+      let perfilesMap = new Map<string, PerfilRelacionado>();
+
+      if (usuariosIds.length > 0) {
+        const { data: perfilesData, error: perfilesError } = await supabase
+          .from('perfiles')
+          .select('id, nombre_completo, correo, rol')
+          .in('id', usuariosIds);
+
+        if (perfilesError) {
+          setError(perfilesError.message);
+          return;
+        }
+
+        perfilesMap = new Map(
+          (perfilesData || []).map((perfil) => [perfil.id, perfil])
+        );
+      }
+
+      const listaConPerfiles: NotificacionItem[] = lista.map((item) => ({
+        ...item,
+        perfil: item.usuario_id ? perfilesMap.get(item.usuario_id) || null : null,
+      }));
+
+      setNotificaciones(listaConPerfiles);
     } catch {
       setError('No se pudieron cargar las notificaciones');
     } finally {
@@ -90,23 +124,28 @@ export default function NotificacionesAdmin() {
   };
 
   const cargarUsuarios = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('perfiles')
       .select('id, nombre_completo, correo, rol')
       .eq('estado', 'activo')
       .order('nombre_completo', { ascending: true });
 
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
     setUsuarios((data as UsuarioOption[]) || []);
   };
 
   const notificacionesFiltradas = useMemo(() => {
-    const texto = busqueda.toLowerCase();
+    const texto = busqueda.toLowerCase().trim();
 
     return notificaciones.filter((n) => {
       const titulo = n.titulo?.toLowerCase() || '';
       const mensaje = n.mensaje?.toLowerCase() || '';
-      const usuario = n.perfiles?.nombre_completo?.toLowerCase() || '';
-      const correo = n.perfiles?.correo?.toLowerCase() || '';
+      const usuario = n.perfil?.nombre_completo?.toLowerCase() || '';
+      const correo = n.perfil?.correo?.toLowerCase() || '';
 
       const coincideBusqueda =
         titulo.includes(texto) ||
@@ -114,24 +153,25 @@ export default function NotificacionesAdmin() {
         usuario.includes(texto) ||
         correo.includes(texto);
 
-      const coincideTipo = filtroTipo === 'todos' ? true : n.tipo === filtroTipo;
+      const coincideTipo =
+        filtroTipo === 'todos' ? true : (n.tipo || '').toLowerCase() === filtroTipo;
 
-      const coincideLeida =
-        filtroLeida === 'todos'
+      const coincideLeido =
+        filtroLeido === 'todos'
           ? true
-          : filtroLeida === 'leida'
-          ? n.leida === true
-          : n.leida === false;
+          : filtroLeido === 'leido'
+          ? n.leido === true
+          : n.leido === false;
 
-      return coincideBusqueda && coincideTipo && coincideLeida;
+      return coincideBusqueda && coincideTipo && coincideLeido;
     });
-  }, [notificaciones, busqueda, filtroTipo, filtroLeida]);
+  }, [notificaciones, busqueda, filtroTipo, filtroLeido]);
 
   const resumen = useMemo(() => {
     return {
       total: notificaciones.length,
-      leidas: notificaciones.filter((n) => n.leida).length,
-      noLeidas: notificaciones.filter((n) => !n.leida).length,
+      leidas: notificaciones.filter((n) => n.leido).length,
+      noLeidas: notificaciones.filter((n) => !n.leido).length,
       sistema: notificaciones.filter((n) => n.tipo === 'sistema').length,
     };
   }, [notificaciones]);
@@ -142,7 +182,7 @@ export default function NotificacionesAdmin() {
 
   const cerrarModalNueva = () => {
     setMostrarModalNueva(false);
-    setNuevoPerfilId('');
+    setNuevoUsuarioId('');
     setNuevoTitulo('');
     setNuevoMensaje('');
     setNuevoTipo('general');
@@ -158,11 +198,12 @@ export default function NotificacionesAdmin() {
       setGuardandoNueva(true);
 
       const payload = {
-        perfil_id: nuevoPerfilId || null,
+        usuario_id: nuevoUsuarioId || null,
         titulo: nuevoTitulo.trim(),
         mensaje: nuevoMensaje.trim(),
         tipo: nuevoTipo,
-        leida: false,
+        leido: false,
+        fecha_envio: new Date().toISOString(),
       };
 
       const { error } = await supabase
@@ -189,7 +230,7 @@ export default function NotificacionesAdmin() {
     setFormTitulo(notificacion.titulo || '');
     setFormMensaje(notificacion.mensaje || '');
     setFormTipo(notificacion.tipo || 'general');
-    setFormLeida(!!notificacion.leida);
+    setFormLeido(!!notificacion.leido);
   };
 
   const cerrarEdicion = () => {
@@ -197,7 +238,7 @@ export default function NotificacionesAdmin() {
     setFormTitulo('');
     setFormMensaje('');
     setFormTipo('general');
-    setFormLeida(false);
+    setFormLeido(false);
   };
 
   const guardarEdicion = async () => {
@@ -217,7 +258,7 @@ export default function NotificacionesAdmin() {
           titulo: formTitulo.trim(),
           mensaje: formMensaje.trim(),
           tipo: formTipo,
-          leida: formLeida,
+          leido: formLeido,
         })
         .eq('id', notificacionEditando.id);
 
@@ -236,10 +277,10 @@ export default function NotificacionesAdmin() {
     }
   };
 
-  const cambiarLeida = async (notificacion: NotificacionItem, valor: boolean) => {
+  const cambiarLeido = async (notificacion: NotificacionItem, valor: boolean) => {
     const { error } = await supabase
       .from('notificaciones')
-      .update({ leida: valor })
+      .update({ leido: valor })
       .eq('id', notificacion.id);
 
     if (error) {
@@ -267,51 +308,67 @@ export default function NotificacionesAdmin() {
     await cargarNotificaciones();
   };
 
+  const getTipoBadge = (tipo: string): React.CSSProperties => {
+    const t = (tipo || '').toLowerCase();
+    if (t === 'sistema') return styles.badgeCancelada;
+    if (t === 'recordatorio') return styles.badgePendiente;
+    if (t === 'cita') return styles.badgeCompletada;
+    return styles.badgeConfirmado;
+  };
+
+  const getTipoIcono = (tipo: string): string => {
+    const t = (tipo || '').toLowerCase();
+    if (t === 'sistema') return '🔧';
+    if (t === 'recordatorio') return '⏰';
+    if (t === 'cita') return '📅';
+    return '📢';
+  };
+
   return (
     <AdminLayout
       titulo="Notificaciones"
       subtitulo="Gestión de avisos y mensajes del sistema"
     >
-      <section style={styles.gridCards}>
+      <div style={styles.cardsGrid}>
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Total notificaciones</p>
-          <h3 style={styles.cardValor}>{resumen.total}</h3>
-          <p style={styles.cardSubtitulo}>Mensajes registrados</p>
+          <p style={styles.cardTitle}>Total notificaciones</p>
+          <h3 style={styles.cardValue}>{resumen.total}</h3>
+          <p style={styles.cardSubtitle}>Mensajes registrados</p>
         </div>
 
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Leídas</p>
-          <h3 style={styles.cardValor}>{resumen.leidas}</h3>
-          <p style={styles.cardSubtitulo}>Mensajes revisados</p>
+          <p style={styles.cardTitle}>Leídas</p>
+          <h3 style={styles.cardValue}>{resumen.leidas}</h3>
+          <p style={styles.cardSubtitle}>Mensajes revisados</p>
         </div>
 
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>No leídas</p>
-          <h3 style={styles.cardValor}>{resumen.noLeidas}</h3>
-          <p style={styles.cardSubtitulo}>Pendientes de revisar</p>
+          <p style={styles.cardTitle}>No leídas</p>
+          <h3 style={styles.cardValue}>{resumen.noLeidas}</h3>
+          <p style={styles.cardSubtitle}>Pendientes de revisar</p>
         </div>
 
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Tipo sistema</p>
-          <h3 style={styles.cardValor}>{resumen.sistema}</h3>
-          <p style={styles.cardSubtitulo}>Alertas del sistema</p>
+          <p style={styles.cardTitle}>Tipo sistema</p>
+          <h3 style={styles.cardValue}>{resumen.sistema}</h3>
+          <p style={styles.cardSubtitle}>Alertas del sistema</p>
         </div>
-      </section>
+      </div>
 
-      <section style={localStyles.filtrosBox}>
-        <div style={localStyles.filtrosFila}>
+      <div style={styles.filtersBox}>
+        <div style={styles.filtersRow}>
           <input
             type="text"
-            placeholder="Buscar por título, mensaje o usuario"
+            placeholder="Buscar por título, mensaje o usuario..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            style={localStyles.input}
+            style={styles.input}
           />
 
           <select
             value={filtroTipo}
             onChange={(e) => setFiltroTipo(e.target.value)}
-            style={localStyles.select}
+            style={styles.select}
           >
             <option value="todos">Todos los tipos</option>
             <option value="general">General</option>
@@ -321,87 +378,117 @@ export default function NotificacionesAdmin() {
           </select>
 
           <select
-            value={filtroLeida}
-            onChange={(e) => setFiltroLeida(e.target.value)}
-            style={localStyles.select}
+            value={filtroLeido}
+            onChange={(e) => setFiltroLeido(e.target.value)}
+            style={styles.select}
           >
             <option value="todos">Todas</option>
-            <option value="leida">Leídas</option>
-            <option value="no_leida">No leídas</option>
+            <option value="leido">Leídas</option>
+            <option value="no_leido">No leídas</option>
           </select>
 
-          <button style={styles.botonSecundario} onClick={cargarNotificaciones}>
+          <button style={styles.btnSecondary} onClick={cargarNotificaciones}>
             Recargar
           </button>
 
-          <button style={styles.botonPrincipal} onClick={abrirModalNueva}>
-            Nueva notificación
+          <button style={styles.btnPrimary} onClick={abrirModalNueva}>
+            + Nueva notificación
           </button>
         </div>
-      </section>
+      </div>
 
-      <section style={styles.tablaBox}>
-        <div style={styles.tablaHeader}>
-          <h3 style={styles.tablaTitulo}>Lista de notificaciones</h3>
+      <div style={styles.tableBox}>
+        <div style={styles.tableHeader}>
+          <h3 style={styles.tableTitle}>Lista de notificaciones</h3>
         </div>
 
         {cargando ? (
-          <div style={localStyles.estadoBox}>
-            <p style={styles.emptyStateText}>Cargando notificaciones...</p>
-          </div>
+          <div style={styles.emptyState}>Cargando notificaciones...</div>
         ) : error ? (
-          <div style={localStyles.estadoBox}>
-            <p style={{ ...styles.emptyStateText, color: '#dc2626' }}>{error}</p>
-          </div>
+          <div style={{ ...styles.emptyState, color: '#F87171' }}>{error}</div>
         ) : notificacionesFiltradas.length === 0 ? (
-          <div style={localStyles.estadoBox}>
-            <p style={styles.emptyStateText}>No se encontraron notificaciones</p>
-          </div>
+          <div style={styles.emptyState}>No se encontraron notificaciones</div>
         ) : (
-          <div style={localStyles.tablaResponsive}>
-            <table style={localStyles.tabla}>
+          <div style={styles.tableResponsive}>
+            <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={localStyles.th}>Título</th>
-                  <th style={localStyles.th}>Usuario</th>
-                  <th style={localStyles.th}>Tipo</th>
-                  <th style={localStyles.th}>Estado</th>
-                  <th style={localStyles.th}>Fecha</th>
-                  <th style={localStyles.th}>Acciones</th>
+                  <th style={styles.th}>Título</th>
+                  <th style={styles.th}>Usuario</th>
+                  <th style={styles.th}>Tipo</th>
+                  <th style={styles.th}>Estado</th>
+                  <th style={styles.th}>Fecha</th>
+                  <th style={styles.th}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {notificacionesFiltradas.map((n) => (
-                  <tr key={n.id}>
-                    <td style={localStyles.td}>{n.titulo}</td>
-                    <td style={localStyles.td}>
-                      {n.perfiles?.nombre_completo || 'Global'}
+                  <tr key={n.id} style={!n.leido ? { background: 'rgba(49,151,149,0.03)' } : {}}>
+                    <td style={styles.td}>
+                      <div>
+                        <div
+                          style={{
+                            fontWeight: !n.leido ? 600 : 400,
+                            color: !n.leido ? '#FFFFFF' : '#CBD5E1',
+                          }}
+                        >
+                          {n.titulo}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
+                          {n.mensaje.length > 60 ? n.mensaje.substring(0, 60) + '...' : n.mensaje}
+                        </div>
+                      </div>
                     </td>
-                    <td style={localStyles.td}>
-                      <span style={obtenerBadgeTipo(n.tipo)}>{n.tipo}</span>
+
+                    <td style={styles.td}>
+                      {n.perfil?.nombre_completo ? (
+                        <div>
+                          <div style={{ fontWeight: 500 }}>{n.perfil.nombre_completo}</div>
+                          <div style={{ fontSize: '11px', color: '#94A3B8' }}>{n.perfil.correo}</div>
+                        </div>
+                      ) : (
+                        <span style={styles.badgeAdmin}>Global</span>
+                      )}
                     </td>
-                    <td style={localStyles.td}>
-                      <span style={n.leida ? localStyles.badgeLeida : localStyles.badgeNoLeida}>
-                        {n.leida ? 'Leída' : 'No leída'}
+
+                    <td style={styles.td}>
+                      <span style={getTipoBadge(n.tipo)}>
+                        {getTipoIcono(n.tipo)} {n.tipo}
                       </span>
                     </td>
-                    <td style={localStyles.td}>
-                      {n.creado_en ? new Date(n.creado_en).toLocaleDateString() : 'Sin fecha'}
+
+                    <td style={styles.td}>
+                      <span style={n.leido ? styles.badgeConfirmado : styles.badgePendiente}>
+                        {n.leido ? '✓ Leída' : '○ No leída'}
+                      </span>
                     </td>
-                    <td style={localStyles.td}>
-                      <div style={localStyles.accionesFila}>
-                        <button style={localStyles.botonEditar} onClick={() => abrirEdicion(n)}>
+
+                    <td style={styles.td}>
+                      <div style={{ fontSize: '12px' }}>
+                        {n.fecha_envio
+                          ? new Date(n.fecha_envio).toLocaleString('es-ES', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                          : '—'}
+                      </div>
+                    </td>
+
+                    <td style={styles.td}>
+                      <div style={styles.actionsRow}>
+                        <button style={styles.btnEdit} onClick={() => abrirEdicion(n)}>
                           Editar
                         </button>
-
                         <button
-                          style={n.leida ? localStyles.botonMarcar : localStyles.botonMarcarLeida}
-                          onClick={() => cambiarLeida(n, !n.leida)}
+                          style={n.leido ? styles.btnSecondary : styles.btnView}
+                          onClick={() => cambiarLeido(n, !n.leido)}
                         >
-                          {n.leida ? 'No leída' : 'Marcar leída'}
+                          {n.leido ? 'Marcar no leída' : 'Marcar leída'}
                         </button>
-
-                        <button style={localStyles.botonEliminar} onClick={() => eliminarNotificacion(n)}>
+                        <button style={styles.btnDelete} onClick={() => eliminarNotificacion(n)}>
                           Eliminar
                         </button>
                       </div>
@@ -412,21 +499,21 @@ export default function NotificacionesAdmin() {
             </table>
           </div>
         )}
-      </section>
+      </div>
 
       {mostrarModalNueva && (
-        <div style={localStyles.modalOverlay}>
-          <div style={localStyles.modal}>
-            <h2 style={localStyles.modalTitulo}>Nueva notificación</h2>
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <h2 style={styles.modalTitle}>Nueva notificación</h2>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Usuario destino</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Usuario destino</label>
               <select
-                value={nuevoPerfilId}
-                onChange={(e) => setNuevoPerfilId(e.target.value)}
-                style={localStyles.select}
+                value={nuevoUsuarioId}
+                onChange={(e) => setNuevoUsuarioId(e.target.value)}
+                style={styles.select}
               >
-                <option value="">Global / todos</option>
+                <option value="">Global / Todos los usuarios</option>
                 {usuarios.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.nombre_completo} - {u.rol}
@@ -435,49 +522,52 @@ export default function NotificacionesAdmin() {
               </select>
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Título</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Título *</label>
               <input
                 type="text"
                 value={nuevoTitulo}
                 onChange={(e) => setNuevoTitulo(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
+                placeholder="Ej: Recordatorio de cita médica"
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Mensaje</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Mensaje *</label>
               <textarea
                 value={nuevoMensaje}
                 onChange={(e) => setNuevoMensaje(e.target.value)}
-                style={localStyles.textarea}
+                style={styles.textarea}
+                rows={4}
+                placeholder="Escribe el contenido de la notificación..."
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Tipo</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Tipo de notificación</label>
               <select
                 value={nuevoTipo}
                 onChange={(e) => setNuevoTipo(e.target.value)}
-                style={localStyles.select}
+                style={styles.select}
               >
                 <option value="general">General</option>
                 <option value="sistema">Sistema</option>
                 <option value="recordatorio">Recordatorio</option>
-                <option value="cita">Cita</option>
+                <option value="cita">Cita médica</option>
               </select>
             </div>
 
-            <div style={localStyles.modalAcciones}>
-              <button style={styles.botonSecundario} onClick={cerrarModalNueva}>
+            <div style={styles.modalActions}>
+              <button style={styles.btnSecondary} onClick={cerrarModalNueva}>
                 Cancelar
               </button>
               <button
-                style={styles.botonPrincipal}
+                style={styles.btnPrimary}
                 onClick={crearNotificacion}
                 disabled={guardandoNueva}
               >
-                {guardandoNueva ? 'Guardando...' : 'Crear notificación'}
+                {guardandoNueva ? 'Creando...' : 'Crear notificación'}
               </button>
             </div>
           </div>
@@ -485,61 +575,62 @@ export default function NotificacionesAdmin() {
       )}
 
       {notificacionEditando && (
-        <div style={localStyles.modalOverlay}>
-          <div style={localStyles.modal}>
-            <h2 style={localStyles.modalTitulo}>Editar notificación</h2>
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <h2 style={styles.modalTitle}>Editar notificación</h2>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Título</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Título</label>
               <input
                 type="text"
                 value={formTitulo}
                 onChange={(e) => setFormTitulo(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Mensaje</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Mensaje</label>
               <textarea
                 value={formMensaje}
                 onChange={(e) => setFormMensaje(e.target.value)}
-                style={localStyles.textarea}
+                style={styles.textarea}
+                rows={4}
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Tipo</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Tipo</label>
               <select
                 value={formTipo}
                 onChange={(e) => setFormTipo(e.target.value)}
-                style={localStyles.select}
+                style={styles.select}
               >
                 <option value="general">General</option>
                 <option value="sistema">Sistema</option>
                 <option value="recordatorio">Recordatorio</option>
-                <option value="cita">Cita</option>
+                <option value="cita">Cita médica</option>
               </select>
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Estado</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Estado</label>
               <select
-                value={formLeida ? 'true' : 'false'}
-                onChange={(e) => setFormLeida(e.target.value === 'true')}
-                style={localStyles.select}
+                value={formLeido ? 'true' : 'false'}
+                onChange={(e) => setFormLeido(e.target.value === 'true')}
+                style={styles.select}
               >
                 <option value="false">No leída</option>
                 <option value="true">Leída</option>
               </select>
             </div>
 
-            <div style={localStyles.modalAcciones}>
-              <button style={styles.botonSecundario} onClick={cerrarEdicion}>
+            <div style={styles.modalActions}>
+              <button style={styles.btnSecondary} onClick={cerrarEdicion}>
                 Cancelar
               </button>
               <button
-                style={styles.botonPrincipal}
+                style={styles.btnPrimary}
                 onClick={guardarEdicion}
                 disabled={guardandoEdicion}
               >
@@ -552,199 +643,3 @@ export default function NotificacionesAdmin() {
     </AdminLayout>
   );
 }
-
-function obtenerBadgeTipo(tipo: string): React.CSSProperties {
-  const base: React.CSSProperties = {
-    display: 'inline-block',
-    padding: '6px 10px',
-    borderRadius: '999px',
-    fontSize: '12px',
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  };
-
-  if (tipo === 'sistema') return { ...base, background: '#FEE2E2', color: '#B91C1C' };
-  if (tipo === 'recordatorio') return { ...base, background: '#FEF3C7', color: '#B45309' };
-  if (tipo === 'cita') return { ...base, background: '#DBEAFE', color: '#1D4ED8' };
-  return { ...base, background: '#DCFCE7', color: '#15803D' };
-}
-
-const localStyles: Record<string, React.CSSProperties> = {
-  filtrosBox: {
-    background: '#FFFFFF',
-    borderRadius: '24px',
-    padding: '20px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-  },
-  filtrosFila: {
-    display: 'grid',
-    gridTemplateColumns: '2fr 1fr 1fr auto auto',
-    gap: '12px',
-  },
-  input: {
-    width: '100%',
-    padding: '14px 16px',
-    border: '1px solid #CBD5E1',
-    borderRadius: '14px',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    backgroundColor: '#FFFFFF',
-    color: '#0F172A',
-  },
-  select: {
-    width: '100%',
-    padding: '14px 16px',
-    border: '1px solid #CBD5E1',
-    borderRadius: '14px',
-    fontSize: '14px',
-    outline: 'none',
-    backgroundColor: '#FFFFFF',
-    color: '#0F172A',
-    boxSizing: 'border-box',
-  },
-  textarea: {
-    width: '100%',
-    minHeight: '120px',
-    padding: '14px 16px',
-    border: '1px solid #CBD5E1',
-    borderRadius: '14px',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    backgroundColor: '#FFFFFF',
-    color: '#0F172A',
-    resize: 'vertical',
-  },
-  estadoBox: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '40px 20px',
-  },
-  tablaResponsive: {
-    overflowX: 'auto',
-  },
-  tabla: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '16px',
-    color: '#64748B',
-    background: '#F8FAFC',
-    fontSize: '13px',
-    fontWeight: '600',
-    borderBottom: '1px solid #E2E8F0',
-  },
-  td: {
-    padding: '16px',
-    borderBottom: '1px solid #F1F5F9',
-    color: '#334155',
-    fontSize: '14px',
-    verticalAlign: 'middle',
-  },
-  accionesFila: {
-    display: 'flex',
-    gap: '8px',
-    flexWrap: 'wrap',
-  },
-  botonEditar: {
-    background: '#DBEAFE',
-    color: '#1D4ED8',
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  botonMarcarLeida: {
-    background: '#DCFCE7',
-    color: '#15803D',
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  botonMarcar: {
-    background: '#FEF3C7',
-    color: '#B45309',
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  botonEliminar: {
-    background: '#FEE2E2',
-    color: '#B91C1C',
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  badgeLeida: {
-    display: 'inline-block',
-    padding: '6px 10px',
-    borderRadius: '999px',
-    fontSize: '12px',
-    fontWeight: '600',
-    background: '#DCFCE7',
-    color: '#15803D',
-  },
-  badgeNoLeida: {
-    display: 'inline-block',
-    padding: '6px 10px',
-    borderRadius: '999px',
-    fontSize: '12px',
-    fontWeight: '600',
-    background: '#FEE2E2',
-    color: '#B91C1C',
-  },
-  modalOverlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(15, 23, 42, 0.45)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-    padding: '20px',
-  },
-  modal: {
-    width: '100%',
-    maxWidth: '720px',
-    background: '#FFFFFF',
-    borderRadius: '24px',
-    padding: '24px',
-    boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-    maxHeight: '90vh',
-    overflowY: 'auto',
-  },
-  modalTitulo: {
-    margin: '0 0 20px',
-    fontSize: '22px',
-    fontWeight: '700',
-    color: '#0A2540',
-  },
-  formGrupo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    marginBottom: '16px',
-  },
-  label: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#334155',
-  },
-  modalAcciones: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '12px',
-    marginTop: '20px',
-  },
-};

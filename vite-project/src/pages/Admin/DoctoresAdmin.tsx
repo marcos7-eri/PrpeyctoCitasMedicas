@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import AdminLayout, { styles } from './AdminLayout';
+import AdminLayout from './AdminLayout';
+import { adminStyles as styles } from './admin';
 import { supabase } from '../../lib/supabase';
 
 interface DoctorItem {
@@ -178,64 +179,61 @@ export default function DoctoresAdmin() {
   };
 
   const guardarNuevoDoctor = async () => {
-  if (!nuevoNombre || !nuevoCorreo || !nuevaContrasena) {
-    alert('Completa nombre, correo y contraseña');
-    return;
-  }
-
-  try {
-    setGuardandoNuevo(true);
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.access_token) {
-      alert('No se encontró la sesión del usuario administrador');
+    if (!nuevoNombre || !nuevoCorreo || !nuevaContrasena) {
+      alert('Completa nombre, correo y contraseña');
       return;
     }
 
-    const { data, error } = await supabase.functions.invoke('crear-doctor', {
-      body: {
-        nombre_completo: nuevoNombre,
-        correo: nuevoCorreo,
-        telefono: nuevoTelefono,
-        contrasena: nuevaContrasena,
-        estado: 'activo',
-        especialidad_id: nuevaEspecialidadId || null,
-        numero_licencia: nuevaLicencia,
-        anios_experiencia: nuevaExperiencia || null,
-        costo_consulta: nuevoCosto || null,
-        biografia: nuevaBiografia,
-      },
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-    },
-    });
+    try {
+      setGuardandoNuevo(true);
 
-    console.log('RESPUESTA FUNCIÓN:', data);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    if (error) {
-      console.error('ERROR EDGE FUNCTION:', error);
-      alert('Error al crear doctor: ' + JSON.stringify(error));
-      return;
+      if (!session?.access_token) {
+        alert('No se encontró la sesión del usuario administrador');
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('crear-doctor', {
+        body: {
+          nombre_completo: nuevoNombre,
+          correo: nuevoCorreo,
+          telefono: nuevoTelefono,
+          contrasena: nuevaContrasena,
+          estado: 'activo',
+          especialidad_id: nuevaEspecialidadId || null,
+          numero_licencia: nuevaLicencia,
+          anios_experiencia: nuevaExperiencia || null,
+          costo_consulta: nuevoCosto || null,
+          biografia: nuevaBiografia,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        alert('Error al crear doctor: ' + JSON.stringify(error));
+        return;
+      }
+
+      if (data?.error) {
+        alert('Error: ' + data.error);
+        return;
+      }
+
+      alert('Doctor creado correctamente');
+      cerrarNuevo();
+      await cargarDoctores();
+    } catch (err) {
+      console.error(err);
+      alert('Ocurrió un error al crear el doctor');
+    } finally {
+      setGuardandoNuevo(false);
     }
-
-    if (data?.error) {
-      alert('Error: ' + data.error);
-      return;
-    }
-
-    alert('Doctor creado correctamente');
-    cerrarNuevo();
-    await cargarDoctores();
-  } catch (err) {
-    console.error(err);
-    alert('Ocurrió un error al crear el doctor');
-  } finally {
-    setGuardandoNuevo(false);
-  }
-};
+  };
 
   const doctoresFiltrados = useMemo(() => {
     return doctores.filter((doctor) => {
@@ -268,51 +266,57 @@ export default function DoctoresAdmin() {
     };
   }, [doctores]);
 
+  const getEstadoBadge = (estado: string) => {
+    return estado === 'activo' ? styles.badgeActive : styles.badgeInactive;
+  };
+
   return (
     <AdminLayout
       titulo="Doctores"
-      subtitulo="Registro y gestion de informacion profesional de los doctores"
+      subtitulo="Registro y gestión de información profesional de los doctores"
     >
-      <section style={styles.gridCards}>
+      {/* Cards de resumen */}
+      <div style={styles.cardsGrid}>
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Total doctores</p>
-          <h3 style={styles.cardValor}>{resumen.total}</h3>
-          <p style={styles.cardSubtitulo}>Doctores registrados</p>
+          <p style={styles.cardTitle}>Total doctores</p>
+          <h3 style={styles.cardValue}>{resumen.total}</h3>
+          <p style={styles.cardSubtitle}>Doctores registrados</p>
         </div>
 
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Activos</p>
-          <h3 style={styles.cardValor}>{resumen.activos}</h3>
-          <p style={styles.cardSubtitulo}>Disponibles en el sistema</p>
+          <p style={styles.cardTitle}>Activos</p>
+          <h3 style={styles.cardValue}>{resumen.activos}</h3>
+          <p style={styles.cardSubtitle}>Disponibles en el sistema</p>
         </div>
 
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Inactivos</p>
-          <h3 style={styles.cardValor}>{resumen.inactivos}</h3>
-          <p style={styles.cardSubtitulo}>Sin acceso al sistema</p>
+          <p style={styles.cardTitle}>Inactivos</p>
+          <h3 style={styles.cardValue}>{resumen.inactivos}</h3>
+          <p style={styles.cardSubtitle}>Sin acceso al sistema</p>
         </div>
 
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Con especialidad</p>
-          <h3 style={styles.cardValor}>{resumen.conEspecialidad}</h3>
-          <p style={styles.cardSubtitulo}>Perfil profesional completo</p>
+          <p style={styles.cardTitle}>Con especialidad</p>
+          <h3 style={styles.cardValue}>{resumen.conEspecialidad}</h3>
+          <p style={styles.cardSubtitle}>Perfil profesional completo</p>
         </div>
-      </section>
+      </div>
 
-      <section style={localStyles.filtrosBox}>
-        <div style={localStyles.filtrosFila}>
+      {/* Filtros */}
+      <div style={styles.filtersBox}>
+        <div style={styles.filtersRow}>
           <input
             type="text"
-            placeholder="Buscar por nombre, correo, telefono o licencia"
+            placeholder="Buscar por nombre, correo, teléfono o licencia"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            style={localStyles.input}
+            style={styles.input}
           />
 
           <select
             value={filtroEspecialidad}
             onChange={(e) => setFiltroEspecialidad(e.target.value)}
-            style={localStyles.select}
+            style={styles.select}
           >
             <option value="todas">Todas las especialidades</option>
             {especialidades.map((esp) => (
@@ -322,84 +326,69 @@ export default function DoctoresAdmin() {
             ))}
           </select>
 
-          <button style={styles.botonSecundario} onClick={cargarDoctores}>
+          <button style={styles.btnSecondary} onClick={cargarDoctores}>
             Recargar
           </button>
-        </div>
-      </section>
 
-      <section style={styles.tablaBox}>
-        <div style={styles.tablaHeader}>
-          <h3 style={styles.tablaTitulo}>Lista de doctores</h3>
-          <button style={styles.botonPrincipal} onClick={abrirNuevo}>
-            Nuevo doctor
+          <button style={styles.btnPrimary} onClick={abrirNuevo}>
+            + Nuevo doctor
           </button>
+        </div>
+      </div>
+
+      {/* Tabla de doctores */}
+      <div style={styles.tableBox}>
+        <div style={styles.tableHeader}>
+          <h3 style={styles.tableTitle}>Lista de doctores</h3>
         </div>
 
         {cargando ? (
-          <div style={localStyles.estadoBox}>
-            <p style={styles.emptyStateText}>Cargando doctores...</p>
-          </div>
+          <div style={styles.emptyState}>Cargando doctores...</div>
         ) : error ? (
-          <div style={localStyles.estadoBox}>
-            <p style={{ ...styles.emptyStateText, color: '#dc2626' }}>{error}</p>
-          </div>
+          <div style={{ ...styles.emptyState, color: '#F87171' }}>{error}</div>
         ) : doctoresFiltrados.length === 0 ? (
-          <div style={localStyles.estadoBox}>
-            <p style={styles.emptyStateText}>No se encontraron doctores</p>
-          </div>
+          <div style={styles.emptyState}>No se encontraron doctores</div>
         ) : (
-          <div style={localStyles.tablaResponsive}>
-            <table style={localStyles.tabla}>
+          <div style={styles.tableResponsive}>
+            <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={localStyles.th}>Nombre</th>
-                  <th style={localStyles.th}>Correo</th>
-                  <th style={localStyles.th}>Telefono</th>
-                  <th style={localStyles.th}>Especialidad</th>
-                  <th style={localStyles.th}>Licencia</th>
-                  <th style={localStyles.th}>Experiencia</th>
-                  <th style={localStyles.th}>Consulta</th>
-                  <th style={localStyles.th}>Estado</th>
-                  <th style={localStyles.th}>Acciones</th>
+                  <th style={styles.th}>Nombre</th>
+                  <th style={styles.th}>Correo</th>
+                  <th style={styles.th}>Teléfono</th>
+                  <th style={styles.th}>Especialidad</th>
+                  <th style={styles.th}>Licencia</th>
+                  <th style={styles.th}>Experiencia</th>
+                  <th style={styles.th}>Consulta</th>
+                  <th style={styles.th}>Estado</th>
+                  <th style={styles.th}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {doctoresFiltrados.map((doctor) => (
                   <tr key={doctor.id}>
-                    <td style={localStyles.td}>{doctor.perfiles?.nombre_completo || 'Sin nombre'}</td>
-                    <td style={localStyles.td}>{doctor.perfiles?.correo || 'Sin correo'}</td>
-                    <td style={localStyles.td}>{doctor.perfiles?.telefono || 'Sin telefono'}</td>
-                    <td style={localStyles.td}>{doctor.especialidades?.nombre || 'Sin especialidad'}</td>
-                    <td style={localStyles.td}>{doctor.numero_licencia || 'Sin licencia'}</td>
-                    <td style={localStyles.td}>
-                      {doctor.anios_experiencia !== null && doctor.anios_experiencia !== undefined
-                        ? `${doctor.anios_experiencia} años`
-                        : 'Sin dato'}
+                    <td style={styles.td}>{doctor.perfiles?.nombre_completo || 'Sin nombre'}</td>
+                    <td style={styles.td}>{doctor.perfiles?.correo || 'Sin correo'}</td>
+                    <td style={styles.td}>{doctor.perfiles?.telefono || '—'}</td>
+                    <td style={styles.td}>{doctor.especialidades?.nombre || '—'}</td>
+                    <td style={styles.td}>{doctor.numero_licencia || '—'}</td>
+                    <td style={styles.td}>
+                      {doctor.anios_experiencia ? `${doctor.anios_experiencia} años` : '—'}
                     </td>
-                    <td style={localStyles.td}>
-                      {doctor.costo_consulta !== null && doctor.costo_consulta !== undefined
-                        ? `Bs ${doctor.costo_consulta}`
-                        : 'Sin costo'}
+                    <td style={styles.td}>
+                      {doctor.costo_consulta ? `Bs ${doctor.costo_consulta}` : '—'}
                     </td>
-                    <td style={localStyles.td}>
-                      <span style={obtenerBadgeEstado(doctor.perfiles?.estado || 'inactivo')}>
+                    <td style={styles.td}>
+                      <span style={getEstadoBadge(doctor.perfiles?.estado || 'inactivo')}>
                         {doctor.perfiles?.estado || 'inactivo'}
                       </span>
                     </td>
-                    <td style={localStyles.td}>
-                      <div style={localStyles.accionesFila}>
-                        <button
-                          style={localStyles.botonVer}
-                          onClick={() => setMostrarDetalle(doctor)}
-                        >
+                    <td style={styles.td}>
+                      <div style={styles.actionsRow}>
+                        <button style={styles.btnView} onClick={() => setMostrarDetalle(doctor)}>
                           Ver
                         </button>
-
-                        <button
-                          style={localStyles.botonEditar}
-                          onClick={() => abrirEdicion(doctor)}
-                        >
+                        <button style={styles.btnEdit} onClick={() => abrirEdicion(doctor)}>
                           Editar
                         </button>
                       </div>
@@ -410,19 +399,20 @@ export default function DoctoresAdmin() {
             </table>
           </div>
         )}
-      </section>
+      </div>
 
+      {/* Modal Editar Doctor */}
       {doctorEditando && (
-        <div style={localStyles.modalOverlay}>
-          <div style={localStyles.modal}>
-            <h2 style={localStyles.modalTitulo}>Editar doctor</h2>
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <h2 style={styles.modalTitle}>Editar doctor</h2>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Especialidad</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Especialidad</label>
               <select
                 value={formEspecialidadId}
                 onChange={(e) => setFormEspecialidadId(e.target.value)}
-                style={localStyles.select}
+                style={styles.select}
               >
                 <option value="">Seleccione especialidad</option>
                 {especialidades.map((esp) => (
@@ -433,54 +423,51 @@ export default function DoctoresAdmin() {
               </select>
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Numero de licencia</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Número de licencia</label>
               <input
                 type="text"
                 value={formLicencia}
                 onChange={(e) => setFormLicencia(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Años de experiencia</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Años de experiencia</label>
               <input
                 type="number"
                 value={formExperiencia}
                 onChange={(e) => setFormExperiencia(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Costo de consulta</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Costo de consulta (Bs)</label>
               <input
                 type="number"
                 value={formCosto}
                 onChange={(e) => setFormCosto(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Biografia</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Biografía</label>
               <textarea
                 value={formBiografia}
                 onChange={(e) => setFormBiografia(e.target.value)}
-                style={localStyles.textarea}
+                style={styles.textarea}
+                rows={4}
               />
             </div>
 
-            <div style={localStyles.modalAcciones}>
-              <button style={styles.botonSecundario} onClick={cerrarEdicion}>
+            <div style={styles.modalActions}>
+              <button style={styles.btnSecondary} onClick={cerrarEdicion}>
                 Cancelar
               </button>
-              <button
-                style={styles.botonPrincipal}
-                onClick={guardarEdicion}
-                disabled={guardandoEdicion}
-              >
+              <button style={styles.btnPrimary} onClick={guardarEdicion} disabled={guardandoEdicion}>
                 {guardandoEdicion ? 'Guardando...' : 'Guardar cambios'}
               </button>
             </div>
@@ -488,57 +475,62 @@ export default function DoctoresAdmin() {
         </div>
       )}
 
+      {/* Modal Nuevo Doctor */}
       {mostrarModalNuevo && (
-        <div style={localStyles.modalOverlay}>
-          <div style={localStyles.modal}>
-            <h2 style={localStyles.modalTitulo}>Nuevo doctor</h2>
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <h2 style={styles.modalTitle}>Nuevo doctor</h2>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Nombre completo</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Nombre completo *</label>
               <input
                 type="text"
                 value={nuevoNombre}
                 onChange={(e) => setNuevoNombre(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
+                placeholder="Ej: Dr. Juan Pérez"
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Correo</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Correo electrónico *</label>
               <input
                 type="email"
                 value={nuevoCorreo}
                 onChange={(e) => setNuevoCorreo(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
+                placeholder="doctor@example.com"
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Telefono</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Teléfono</label>
               <input
                 type="text"
                 value={nuevoTelefono}
                 onChange={(e) => setNuevoTelefono(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
+                placeholder="+591 12345678"
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Contraseña</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Contraseña *</label>
               <input
                 type="password"
                 value={nuevaContrasena}
                 onChange={(e) => setNuevaContrasena(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
+                placeholder="********"
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Especialidad</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Especialidad</label>
               <select
                 value={nuevaEspecialidadId}
                 onChange={(e) => setNuevaEspecialidadId(e.target.value)}
-                style={localStyles.select}
+                style={styles.select}
               >
                 <option value="">Seleccione especialidad</option>
                 {especialidades.map((esp) => (
@@ -549,76 +541,82 @@ export default function DoctoresAdmin() {
               </select>
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Licencia</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Número de licencia</label>
               <input
                 type="text"
                 value={nuevaLicencia}
                 onChange={(e) => setNuevaLicencia(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
+                placeholder="Ej: MED-12345"
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Experiencia</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Años de experiencia</label>
               <input
                 type="number"
                 value={nuevaExperiencia}
                 onChange={(e) => setNuevaExperiencia(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
+                placeholder="Ej: 5"
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Costo consulta</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Costo de consulta (Bs)</label>
               <input
                 type="number"
                 value={nuevoCosto}
                 onChange={(e) => setNuevoCosto(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
+                placeholder="Ej: 250"
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Biografia</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Biografía</label>
               <textarea
                 value={nuevaBiografia}
                 onChange={(e) => setNuevaBiografia(e.target.value)}
-                style={localStyles.textarea}
+                style={styles.textarea}
+                rows={3}
+                placeholder="Información profesional del doctor..."
               />
             </div>
 
-            <div style={localStyles.modalAcciones}>
-              <button style={styles.botonSecundario} onClick={cerrarNuevo}>
+            <div style={styles.modalActions}>
+              <button style={styles.btnSecondary} onClick={cerrarNuevo}>
                 Cancelar
               </button>
-              <button style={styles.botonPrincipal} onClick={guardarNuevoDoctor}>
-                {guardandoNuevo ? 'Guardando...' : 'Crear doctor'}
+              <button style={styles.btnPrimary} onClick={guardarNuevoDoctor} disabled={guardandoNuevo}>
+                {guardandoNuevo ? 'Creando...' : 'Crear doctor'}
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Modal Detalle Doctor */}
       {mostrarDetalle && (
-        <div style={localStyles.modalOverlay}>
-          <div style={localStyles.modal}>
-            <h2 style={localStyles.modalTitulo}>Detalle del doctor</h2>
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <h2 style={styles.modalTitle}>Detalle del doctor</h2>
 
-            <div style={localStyles.detalleBox}>
-              <p><b>Nombre:</b> {mostrarDetalle.perfiles?.nombre_completo || 'Sin nombre'}</p>
-              <p><b>Correo:</b> {mostrarDetalle.perfiles?.correo || 'Sin correo'}</p>
-              <p><b>Telefono:</b> {mostrarDetalle.perfiles?.telefono || 'Sin telefono'}</p>
-              <p><b>Estado:</b> {mostrarDetalle.perfiles?.estado || 'inactivo'}</p>
-              <p><b>Especialidad:</b> {mostrarDetalle.especialidades?.nombre || 'Sin especialidad'}</p>
-              <p><b>Licencia:</b> {mostrarDetalle.numero_licencia || 'Sin licencia'}</p>
-              <p><b>Experiencia:</b> {mostrarDetalle.anios_experiencia ?? 'Sin dato'} años</p>
-              <p><b>Costo:</b> {mostrarDetalle.costo_consulta ?? 'Sin dato'}</p>
-              <p><b>Biografia:</b> {mostrarDetalle.biografia || 'Sin biografia'}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <p><strong>Nombre:</strong> {mostrarDetalle.perfiles?.nombre_completo || 'Sin nombre'}</p>
+              <p><strong>Correo:</strong> {mostrarDetalle.perfiles?.correo || 'Sin correo'}</p>
+              <p><strong>Teléfono:</strong> {mostrarDetalle.perfiles?.telefono || '—'}</p>
+              <p><strong>Estado:</strong> {mostrarDetalle.perfiles?.estado || 'inactivo'}</p>
+              <p><strong>Especialidad:</strong> {mostrarDetalle.especialidades?.nombre || '—'}</p>
+              <p><strong>Licencia:</strong> {mostrarDetalle.numero_licencia || '—'}</p>
+              <p><strong>Experiencia:</strong> {mostrarDetalle.anios_experiencia ? `${mostrarDetalle.anios_experiencia} años` : '—'}</p>
+              <p><strong>Costo consulta:</strong> {mostrarDetalle.costo_consulta ? `Bs ${mostrarDetalle.costo_consulta}` : '—'}</p>
+              <p><strong>Biografía:</strong> {mostrarDetalle.biografia || '—'}</p>
             </div>
 
-            <div style={localStyles.modalAcciones}>
-              <button style={styles.botonSecundario} onClick={() => setMostrarDetalle(null)}>
+            <div style={styles.modalActions}>
+              <button style={styles.btnSecondary} onClick={() => setMostrarDetalle(null)}>
                 Cerrar
               </button>
             </div>
@@ -628,171 +626,3 @@ export default function DoctoresAdmin() {
     </AdminLayout>
   );
 }
-
-function obtenerBadgeEstado(estado: 'activo' | 'inactivo'): React.CSSProperties {
-  const base: React.CSSProperties = {
-    display: 'inline-block',
-    padding: '6px 10px',
-    borderRadius: '999px',
-    fontSize: '12px',
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  };
-
-  if (estado === 'activo') {
-    return { ...base, background: '#DCFCE7', color: '#15803D' };
-  }
-
-  return { ...base, background: '#FEE2E2', color: '#B91C1C' };
-}
-
-const localStyles: Record<string, React.CSSProperties> = {
-  filtrosBox: {
-    background: '#FFFFFF',
-    borderRadius: '24px',
-    padding: '20px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-  },
-  filtrosFila: {
-    display: 'grid',
-    gridTemplateColumns: '2fr 1fr auto',
-    gap: '12px',
-  },
-  input: {
-    width: '100%',
-    padding: '14px 16px',
-    border: '1px solid #CBD5E1',
-    borderRadius: '14px',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    backgroundColor: '#FFFFFF',
-    color: '#0F172A',
-  },
-  select: {
-    width: '100%',
-    padding: '14px 16px',
-    border: '1px solid #CBD5E1',
-    borderRadius: '14px',
-    fontSize: '14px',
-    outline: 'none',
-    backgroundColor: '#FFFFFF',
-    color: '#0F172A',
-    boxSizing: 'border-box',
-  },
-  textarea: {
-    width: '100%',
-    minHeight: '110px',
-    padding: '14px 16px',
-    border: '1px solid #CBD5E1',
-    borderRadius: '14px',
-    fontSize: '14px',
-    outline: 'none',
-    backgroundColor: '#FFFFFF',
-    color: '#0F172A',
-    boxSizing: 'border-box',
-    resize: 'vertical',
-  },
-  estadoBox: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '40px 20px',
-  },
-  tablaResponsive: {
-    overflowX: 'auto',
-  },
-  tabla: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '16px',
-    color: '#64748B',
-    background: '#F8FAFC',
-    fontSize: '13px',
-    fontWeight: '600',
-    borderBottom: '1px solid #E2E8F0',
-  },
-  td: {
-    padding: '16px',
-    borderBottom: '1px solid #F1F5F9',
-    color: '#334155',
-    fontSize: '14px',
-    verticalAlign: 'middle',
-  },
-  accionesFila: {
-    display: 'flex',
-    gap: '8px',
-    flexWrap: 'wrap',
-  },
-  botonVer: {
-    background: '#E0F2FE',
-    color: '#0369A1',
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  botonEditar: {
-    background: '#DBEAFE',
-    color: '#1D4ED8',
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(15, 23, 42, 0.45)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-    padding: '20px',
-  },
-  modal: {
-    width: '100%',
-    maxWidth: '560px',
-    background: '#FFFFFF',
-    borderRadius: '24px',
-    padding: '24px',
-    boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-    maxHeight: '90vh',
-    overflowY: 'auto',
-  },
-  modalTitulo: {
-    margin: '0 0 20px',
-    fontSize: '22px',
-    fontWeight: '700',
-    color: '#0A2540',
-  },
-  formGrupo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    marginBottom: '16px',
-  },
-  label: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#334155',
-  },
-  modalAcciones: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '12px',
-    marginTop: '20px',
-  },
-  detalleBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-    color: '#334155',
-    fontSize: '14px',
-  },
-};

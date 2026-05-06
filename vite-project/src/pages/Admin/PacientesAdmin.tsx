@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import AdminLayout, { styles } from './AdminLayout';
+import AdminLayout from './AdminLayout';
+import { adminStyles as styles } from './admin';
 import { supabase } from '../../lib/supabase';
 
 interface PacienteItem {
@@ -265,125 +266,159 @@ export default function PacientesAdmin() {
     }
   };
 
+  const getTipoSangreColor = (tipo: string): string => {
+    const colores: Record<string, string> = {
+      'A+': '#4ADE80',
+      'A-': '#22C55E',
+      'B+': '#60A5FA',
+      'B-': '#3B82F6',
+      'AB+': '#A78BFA',
+      'AB-': '#8B5CF6',
+      'O+': '#FBBF24',
+      'O-': '#F59E0B',
+    };
+    return colores[tipo] || '#94A3B8';
+  };
+
   return (
     <AdminLayout
       titulo="Pacientes"
       subtitulo="Gestión de pacientes, datos personales e historial básico"
     >
-      <section style={styles.gridCards}>
+      {/* Cards de resumen */}
+      <div style={styles.cardsGrid}>
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Total pacientes</p>
-          <h3 style={styles.cardValor}>{resumen.total}</h3>
-          <p style={styles.cardSubtitulo}>Pacientes registrados</p>
+          <p style={styles.cardTitle}>Total pacientes</p>
+          <h3 style={styles.cardValue}>{resumen.total}</h3>
+          <p style={styles.cardSubtitle}>Pacientes registrados</p>
         </div>
 
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Activos</p>
-          <h3 style={styles.cardValor}>{resumen.activos}</h3>
-          <p style={styles.cardSubtitulo}>Con acceso al sistema</p>
+          <p style={styles.cardTitle}>Activos</p>
+          <h3 style={styles.cardValue}>{resumen.activos}</h3>
+          <p style={styles.cardSubtitle}>Con acceso al sistema</p>
         </div>
 
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Inactivos</p>
-          <h3 style={styles.cardValor}>{resumen.inactivos}</h3>
-          <p style={styles.cardSubtitulo}>Sin acceso al sistema</p>
+          <p style={styles.cardTitle}>Inactivos</p>
+          <h3 style={styles.cardValue}>{resumen.inactivos}</h3>
+          <p style={styles.cardSubtitle}>Sin acceso al sistema</p>
         </div>
 
         <div style={styles.card}>
-          <p style={styles.cardTitulo}>Con tipo de sangre</p>
-          <h3 style={styles.cardValor}>{resumen.conTipoSangre}</h3>
-          <p style={styles.cardSubtitulo}>Ficha más completa</p>
+          <p style={styles.cardTitle}>Con tipo de sangre</p>
+          <h3 style={styles.cardValue}>{resumen.conTipoSangre}</h3>
+          <p style={styles.cardSubtitle}>Ficha más completa</p>
         </div>
-      </section>
+      </div>
 
-      <section style={localStyles.filtrosBox}>
-        <div style={localStyles.filtrosFila}>
+      {/* Filtros */}
+      <div style={styles.filtersBox}>
+        <div style={styles.filtersRow}>
           <input
             type="text"
-            placeholder="Buscar por nombre, correo o teléfono"
+            placeholder="Buscar por nombre, correo o teléfono..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            style={localStyles.input}
+            style={styles.input}
           />
 
-          <button style={styles.botonSecundario} onClick={cargarPacientes}>
+          <button style={styles.btnSecondary} onClick={cargarPacientes}>
             Recargar
           </button>
         </div>
-      </section>
+      </div>
 
-      <section style={styles.tablaBox}>
-        <div style={styles.tablaHeader}>
-          <h3 style={styles.tablaTitulo}>Lista de pacientes</h3>
+      {/* Tabla de pacientes */}
+      <div style={styles.tableBox}>
+        <div style={styles.tableHeader}>
+          <h3 style={styles.tableTitle}>Lista de pacientes</h3>
         </div>
 
         {cargando ? (
-          <div style={localStyles.estadoBox}>
-            <p style={styles.emptyStateText}>Cargando pacientes...</p>
-          </div>
+          <div style={styles.emptyState}>Cargando pacientes...</div>
         ) : error ? (
-          <div style={localStyles.estadoBox}>
-            <p style={{ ...styles.emptyStateText, color: '#dc2626' }}>{error}</p>
-          </div>
+          <div style={{ ...styles.emptyState, color: '#F87171' }}>{error}</div>
         ) : pacientesFiltrados.length === 0 ? (
-          <div style={localStyles.estadoBox}>
-            <p style={styles.emptyStateText}>No se encontraron pacientes</p>
-          </div>
+          <div style={styles.emptyState}>No se encontraron pacientes</div>
         ) : (
-          <div style={localStyles.tablaResponsive}>
-            <table style={localStyles.tabla}>
+          <div style={styles.tableResponsive}>
+            <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={localStyles.th}>Nombre</th>
-                  <th style={localStyles.th}>Correo</th>
-                  <th style={localStyles.th}>Teléfono</th>
-                  <th style={localStyles.th}>Tipo de sangre</th>
-                  <th style={localStyles.th}>Estado</th>
-                  <th style={localStyles.th}>Registro</th>
-                  <th style={localStyles.th}>Acciones</th>
+                  <th style={styles.th}>Paciente</th>
+                  <th style={styles.th}>Contacto</th>
+                  <th style={styles.th}>Tipo sangre</th>
+                  <th style={styles.th}>Estado</th>
+                  <th style={styles.th}>Registro</th>
+                  <th style={styles.th}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {pacientesFiltrados.map((paciente) => (
                   <tr key={paciente.id}>
-                    <td style={localStyles.td}>{paciente.perfiles?.nombre_completo || 'Sin nombre'}</td>
-                    <td style={localStyles.td}>{paciente.perfiles?.correo || 'Sin correo'}</td>
-                    <td style={localStyles.td}>{paciente.perfiles?.telefono || 'Sin teléfono'}</td>
-                    <td style={localStyles.td}>{paciente.tipo_sangre || 'Sin dato'}</td>
-                    <td style={localStyles.td}>
-                      <span style={obtenerBadgeEstado(paciente.perfiles?.estado || 'inactivo')}>
-                        {paciente.perfiles?.estado || 'inactivo'}
+                    <td style={styles.td}>
+                      <div>
+                        <div style={{ fontWeight: 600, color: '#FFFFFF' }}>
+                          {paciente.perfiles?.nombre_completo || 'Sin nombre'}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#94A3B8' }}>
+                          ID: {paciente.id.substring(0, 8)}...
+                        </div>
+                      </div>
+                    </td>
+                    <td style={styles.td}>
+                      <div>
+                        <div style={{ fontSize: '13px' }}>{paciente.perfiles?.correo || '—'}</div>
+                        <div style={{ fontSize: '12px', color: '#94A3B8' }}>
+                          📞 {paciente.perfiles?.telefono || '—'}
+                        </div>
+                      </div>
+                    </td>
+                    <td style={styles.td}>
+                      {paciente.tipo_sangre ? (
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '6px 12px',
+                          background: `${getTipoSangreColor(paciente.tipo_sangre)}20`,
+                          borderRadius: '20px',
+                          fontSize: '13px',
+                          fontWeight: 'bold',
+                          color: getTipoSangreColor(paciente.tipo_sangre),
+                          border: `1px solid ${getTipoSangreColor(paciente.tipo_sangre)}40`
+                        }}>
+                          {paciente.tipo_sangre}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#64748B' }}>—</span>
+                      )}
+                    </td>
+                    <td style={styles.td}>
+                      <span style={paciente.perfiles?.estado === 'activo' ? styles.badgeActive : styles.badgeInactive}>
+                        {paciente.perfiles?.estado === 'activo' ? 'Activo' : 'Inactivo'}
                       </span>
                     </td>
-                    <td style={localStyles.td}>
-                      {paciente.perfiles?.creado_en
-                        ? new Date(paciente.perfiles.creado_en).toLocaleDateString()
-                        : 'Sin fecha'}
+                    <td style={styles.td}>
+                      <div style={{ fontSize: '12px' }}>
+                        {paciente.perfiles?.creado_en
+                          ? new Date(paciente.perfiles.creado_en).toLocaleDateString('es-ES')
+                          : '—'}
+                      </div>
                     </td>
-                    <td style={localStyles.td}>
-                      <div style={localStyles.accionesFila}>
-                        <button style={localStyles.botonVer} onClick={() => verDetalle(paciente)}>
+                    <td style={styles.td}>
+                      <div style={styles.actionsRow}>
+                        <button style={styles.btnView} onClick={() => verDetalle(paciente)}>
                           Ver
                         </button>
-
-                        <button style={localStyles.botonEditar} onClick={() => abrirEdicion(paciente)}>
+                        <button style={styles.btnEdit} onClick={() => abrirEdicion(paciente)}>
                           Editar
                         </button>
-
                         <button
-                          style={
-                            paciente.perfiles?.estado === 'activo'
-                              ? localStyles.botonDesactivar
-                              : localStyles.botonActivar
-                          }
+                          style={paciente.perfiles?.estado === 'activo' ? styles.btnDelete : styles.btnEdit}
                           onClick={() => cambiarEstadoPaciente(paciente)}
                           disabled={procesandoId === paciente.id}
                         >
-                          {procesandoId === paciente.id
-                            ? 'Guardando...'
-                            : paciente.perfiles?.estado === 'activo'
-                            ? 'Inactivar'
-                            : 'Activar'}
+                          {paciente.perfiles?.estado === 'activo' ? 'Inactivar' : 'Activar'}
                         </button>
                       </div>
                     </td>
@@ -393,104 +428,121 @@ export default function PacientesAdmin() {
             </table>
           </div>
         )}
-      </section>
+      </div>
 
+      {/* Modal Editar Paciente */}
       {pacienteEditando && (
-        <div style={localStyles.modalOverlay}>
-          <div style={localStyles.modal}>
-            <h2 style={localStyles.modalTitulo}>Editar paciente</h2>
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <h2 style={styles.modalTitle}>Editar paciente</h2>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Nombre completo</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Nombre completo</label>
               <input
                 value={formNombre}
                 onChange={(e) => setFormNombre(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
+                placeholder="Nombres y apellidos"
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Teléfono</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Teléfono</label>
               <input
                 value={formTelefono}
                 onChange={(e) => setFormTelefono(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
+                placeholder="+591 12345678"
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Estado</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Estado</label>
               <select
                 value={formEstado}
                 onChange={(e) => setFormEstado(e.target.value as 'activo' | 'inactivo')}
-                style={localStyles.select}
+                style={styles.select}
               >
-                <option value="activo">Activo</option>
-                <option value="inactivo">Inactivo</option>
+                <option value="activo">✅ Activo</option>
+                <option value="inactivo">❌ Inactivo</option>
               </select>
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Fecha de nacimiento</label>
-              <input
-                type="date"
-                value={formFechaNacimiento}
-                onChange={(e) => setFormFechaNacimiento(e.target.value)}
-                style={localStyles.input}
-              />
+            <div style={styles.rowTwoColumns}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Fecha de nacimiento</label>
+                <input
+                  type="date"
+                  value={formFechaNacimiento}
+                  onChange={(e) => setFormFechaNacimiento(e.target.value)}
+                  style={styles.input}
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Género</label>
+                <select value={formGenero} onChange={(e) => setFormGenero(e.target.value)} style={styles.select}>
+                  <option value="">Seleccionar</option>
+                  <option value="Masculino">👨 Masculino</option>
+                  <option value="Femenino">👩 Femenino</option>
+                  <option value="Otro">🌈 Otro</option>
+                </select>
+              </div>
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Género</label>
-              <input
-                value={formGenero}
-                onChange={(e) => setFormGenero(e.target.value)}
-                style={localStyles.input}
-              />
-            </div>
-
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Dirección</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Dirección</label>
               <input
                 value={formDireccion}
                 onChange={(e) => setFormDireccion(e.target.value)}
-                style={localStyles.input}
+                style={styles.input}
+                placeholder="Calle, número, ciudad"
               />
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Tipo de sangre</label>
-              <input
-                value={formTipoSangre}
-                onChange={(e) => setFormTipoSangre(e.target.value)}
-                style={localStyles.input}
-              />
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Tipo de sangre</label>
+              <select value={formTipoSangre} onChange={(e) => setFormTipoSangre(e.target.value)} style={styles.select}>
+                <option value="">Seleccionar</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Contacto de emergencia</label>
-              <input
-                value={formContactoNombre}
-                onChange={(e) => setFormContactoNombre(e.target.value)}
-                style={localStyles.input}
-              />
+            <div style={styles.rowTwoColumns}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Contacto emergencia</label>
+                <input
+                  value={formContactoNombre}
+                  onChange={(e) => setFormContactoNombre(e.target.value)}
+                  style={styles.input}
+                  placeholder="Nombre del contacto"
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Teléfono emergencia</label>
+                <input
+                  value={formContactoTelefono}
+                  onChange={(e) => setFormContactoTelefono(e.target.value)}
+                  style={styles.input}
+                  placeholder="Teléfono de emergencia"
+                />
+              </div>
             </div>
 
-            <div style={localStyles.formGrupo}>
-              <label style={localStyles.label}>Teléfono emergencia</label>
-              <input
-                value={formContactoTelefono}
-                onChange={(e) => setFormContactoTelefono(e.target.value)}
-                style={localStyles.input}
-              />
-            </div>
-
-            <div style={localStyles.modalAcciones}>
-              <button style={styles.botonSecundario} onClick={cerrarEdicion}>
+            <div style={styles.modalActions}>
+              <button style={styles.btnSecondary} onClick={cerrarEdicion}>
                 Cancelar
               </button>
               <button
-                style={styles.botonPrincipal}
+                style={styles.btnPrimary}
                 onClick={guardarEdicion}
                 disabled={guardandoEdicion}
               >
@@ -501,51 +553,105 @@ export default function PacientesAdmin() {
         </div>
       )}
 
+      {/* Modal Detalle Paciente */}
       {pacienteDetalle && (
-        <div style={localStyles.modalOverlay}>
-          <div style={localStyles.modalGrande}>
-            <h2 style={localStyles.modalTitulo}>Detalle del paciente</h2>
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalLarge}>
+            <h2 style={styles.modalTitle}>Detalle del paciente</h2>
 
-            <div style={localStyles.detalleGrid}>
-              <div style={localStyles.detalleCard}>
-                <h3 style={localStyles.subtituloDetalle}>Datos generales</h3>
-                <p><b>Nombre:</b> {pacienteDetalle.perfiles?.nombre_completo || 'Sin nombre'}</p>
-                <p><b>Correo:</b> {pacienteDetalle.perfiles?.correo || 'Sin correo'}</p>
-                <p><b>Teléfono:</b> {pacienteDetalle.perfiles?.telefono || 'Sin teléfono'}</p>
-                <p><b>Estado:</b> {pacienteDetalle.perfiles?.estado || 'inactivo'}</p>
-                <p><b>Fecha nacimiento:</b> {pacienteDetalle.fecha_nacimiento || 'Sin dato'}</p>
-                <p><b>Género:</b> {pacienteDetalle.genero || 'Sin dato'}</p>
-                <p><b>Dirección:</b> {pacienteDetalle.direccion || 'Sin dato'}</p>
-                <p><b>Tipo de sangre:</b> {pacienteDetalle.tipo_sangre || 'Sin dato'}</p>
-                <p><b>Contacto emergencia:</b> {pacienteDetalle.contacto_emergencia_nombre || 'Sin dato'}</p>
-                <p><b>Teléfono de emergencia:</b> {pacienteDetalle.contacto_emergencia_telefono || 'Sin dato'}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              {/* Información personal */}
+              <div style={{ 
+                background: 'rgba(49,151,149,0.05)', 
+                padding: '20px', 
+                borderRadius: '16px',
+                borderLeft: '3px solid #319795'
+              }}>
+                <h3 style={{ fontSize: '16px', color: '#319795', margin: '0 0 16px 0' }}>📋 Información personal</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <p><strong>👤 Nombre:</strong> {pacienteDetalle.perfiles?.nombre_completo || '—'}</p>
+                  <p><strong>📧 Correo:</strong> {pacienteDetalle.perfiles?.correo || '—'}</p>
+                  <p><strong>📞 Teléfono:</strong> {pacienteDetalle.perfiles?.telefono || '—'}</p>
+                  <p><strong>🎂 Fecha nac.:</strong> {pacienteDetalle.fecha_nacimiento || '—'}</p>
+                  <p><strong>⚥ Género:</strong> {pacienteDetalle.genero || '—'}</p>
+                  <p><strong>🩸 Tipo sangre:</strong> {pacienteDetalle.tipo_sangre || '—'}</p>
+                  <p><strong>📍 Dirección:</strong> {pacienteDetalle.direccion || '—'}</p>
+                  <p><strong>📅 Registro:</strong> {pacienteDetalle.perfiles?.creado_en ? new Date(pacienteDetalle.perfiles.creado_en).toLocaleDateString() : '—'}</p>
+                </div>
               </div>
 
-              <div style={localStyles.detalleCard}>
-                <h3 style={localStyles.subtituloDetalle}>Citas del paciente</h3>
-
-                {cargandoDetalle ? (
-                  <p style={styles.emptyStateText}>Cargando citas...</p>
-                ) : citasDetalle.length === 0 ? (
-                  <p style={styles.emptyStateText}>No tiene citas registradas</p>
-                ) : (
-                  <div style={localStyles.listaCitas}>
-                    <p><b>Total citas:</b> {citasDetalle.length}</p>
-                    {citasDetalle.slice(0, 8).map((cita) => (
-                      <div key={cita.id} style={localStyles.citaItem}>
-                        <p><b>Fecha:</b> {cita.fecha}</p>
-                        <p><b>Hora:</b> {cita.hora_inicio}</p>
-                        <p><b>Estado:</b> {cita.estado}</p>
-                        <p><b>Motivo:</b> {cita.motivo || 'Sin motivo'}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              {/* Contacto emergencia */}
+              <div style={{ 
+                background: 'rgba(239,68,68,0.05)', 
+                padding: '20px', 
+                borderRadius: '16px',
+                borderLeft: '3px solid #F87171'
+              }}>
+                <h3 style={{ fontSize: '16px', color: '#F87171', margin: '0 0 16px 0' }}>🚨 Contacto de emergencia</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <p><strong>👤 Nombre:</strong> {pacienteDetalle.contacto_emergencia_nombre || '—'}</p>
+                  <p><strong>📞 Teléfono:</strong> {pacienteDetalle.contacto_emergencia_telefono || '—'}</p>
+                </div>
               </div>
             </div>
 
-            <div style={localStyles.modalAcciones}>
-              <button style={styles.botonSecundario} onClick={() => setPacienteDetalle(null)}>
+            {/* Historial de citas */}
+            <div style={{ 
+              marginTop: '20px',
+              background: 'rgba(255,255,255,0.03)', 
+              padding: '20px', 
+              borderRadius: '16px'
+            }}>
+              <h3 style={{ fontSize: '16px', color: '#FFFFFF', margin: '0 0 16px 0' }}>📅 Historial de citas</h3>
+              
+              {cargandoDetalle ? (
+                <div style={styles.emptyState}>Cargando citas...</div>
+              ) : citasDetalle.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#64748B', padding: '20px' }}>
+                  No tiene citas registradas
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <p><strong>Total citas:</strong> {citasDetalle.length}</p>
+                  {citasDetalle.slice(0, 8).map((cita) => (
+                    <div key={cita.id} style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      padding: '12px',
+                      borderRadius: '12px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '10px'
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{cita.fecha}</div>
+                        <div style={{ fontSize: '12px', color: '#94A3B8' }}>{cita.hora_inicio}</div>
+                      </div>
+                      <div>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '4px 10px',
+                          borderRadius: '20px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          background: cita.estado === 'confirmado' ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)',
+                          color: cita.estado === 'confirmado' ? '#4ADE80' : '#FBBF24'
+                        }}>
+                          {cita.estado}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#CBD5E1', maxWidth: '200px' }}>
+                        {cita.motivo || 'Sin motivo'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={styles.modalActions}>
+              <button style={styles.btnSecondary} onClick={() => setPacienteDetalle(null)}>
                 Cerrar
               </button>
             </div>
@@ -555,209 +661,3 @@ export default function PacientesAdmin() {
     </AdminLayout>
   );
 }
-
-function obtenerBadgeEstado(estado: 'activo' | 'inactivo'): React.CSSProperties {
-  const base: React.CSSProperties = {
-    display: 'inline-block',
-    padding: '6px 10px',
-    borderRadius: '999px',
-    fontSize: '12px',
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  };
-
-  if (estado === 'activo') {
-    return { ...base, background: '#DCFCE7', color: '#15803D' };
-  }
-
-  return { ...base, background: '#FEE2E2', color: '#B91C1C' };
-}
-
-const localStyles: Record<string, React.CSSProperties> = {
-  filtrosBox: {
-    background: '#FFFFFF',
-    borderRadius: '24px',
-    padding: '20px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-  },
-  filtrosFila: {
-    display: 'grid',
-    gridTemplateColumns: '2fr auto',
-    gap: '12px',
-  },
-  input: {
-    width: '100%',
-    padding: '14px 16px',
-    border: '1px solid #CBD5E1',
-    borderRadius: '14px',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    backgroundColor: '#FFFFFF',
-    color: '#0F172A',
-  },
-  select: {
-    width: '100%',
-    padding: '14px 16px',
-    border: '1px solid #CBD5E1',
-    borderRadius: '14px',
-    fontSize: '14px',
-    outline: 'none',
-    backgroundColor: '#FFFFFF',
-    color: '#0F172A',
-    boxSizing: 'border-box',
-  },
-  estadoBox: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '40px 20px',
-  },
-  tablaResponsive: {
-    overflowX: 'auto',
-  },
-  tabla: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '16px',
-    color: '#64748B',
-    background: '#F8FAFC',
-    fontSize: '13px',
-    fontWeight: '600',
-    borderBottom: '1px solid #E2E8F0',
-  },
-  td: {
-    padding: '16px',
-    borderBottom: '1px solid #F1F5F9',
-    color: '#334155',
-    fontSize: '14px',
-    verticalAlign: 'middle',
-  },
-  accionesFila: {
-    display: 'flex',
-    gap: '8px',
-    flexWrap: 'wrap',
-  },
-  botonVer: {
-    background: '#E0F2FE',
-    color: '#0369A1',
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  botonEditar: {
-    background: '#DBEAFE',
-    color: '#1D4ED8',
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  botonActivar: {
-    background: '#DCFCE7',
-    color: '#15803D',
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  botonDesactivar: {
-    background: '#FEE2E2',
-    color: '#B91C1C',
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(15, 23, 42, 0.45)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-    padding: '20px',
-  },
-  modal: {
-    width: '100%',
-    maxWidth: '620px',
-    background: '#FFFFFF',
-    borderRadius: '24px',
-    padding: '24px',
-    boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-    maxHeight: '90vh',
-    overflowY: 'auto',
-  },
-  modalGrande: {
-    width: '100%',
-    maxWidth: '980px',
-    background: '#FFFFFF',
-    borderRadius: '24px',
-    padding: '24px',
-    boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-    maxHeight: '90vh',
-    overflowY: 'auto',
-  },
-  modalTitulo: {
-    margin: '0 0 20px',
-    fontSize: '22px',
-    fontWeight: '700',
-    color: '#0A2540',
-  },
-  formGrupo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    marginBottom: '16px',
-  },
-  label: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#334155',
-  },
-  modalAcciones: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '12px',
-    marginTop: '20px',
-  },
-  detalleGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '20px',
-  },
-  detalleCard: {
-    background: '#F8FAFC',
-    borderRadius: '18px',
-    padding: '18px',
-    color: '#334155',
-    fontSize: '14px',
-    lineHeight: 1.7,
-  },
-  subtituloDetalle: {
-    margin: '0 0 12px',
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#0A2540',
-  },
-  listaCitas: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-  },
-  citaItem: {
-    background: '#FFFFFF',
-    border: '1px solid #E2E8F0',
-    borderRadius: '14px',
-    padding: '12px',
-  },
-};

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import AdminLayout, { styles } from './AdminLayout';
+import AdminLayout from './AdminLayout';
+import { adminStyles as styles } from './admin';
 import { supabase } from '../../lib/supabase';
 
 interface PerfilItem {
@@ -57,11 +58,15 @@ export default function PerfilAdmin() {
       }
 
       const perfilData = data as PerfilItem;
+
       setPerfil(perfilData);
       setFormNombre(perfilData.nombre_completo || '');
       setFormCorreo(perfilData.correo || '');
       setFormTelefono(perfilData.telefono || '');
       setFotoPreview(perfilData.foto_url || '');
+
+      localStorage.setItem('perfil', JSON.stringify(perfilData));
+      window.dispatchEvent(new Event('perfil-actualizado'));
     } catch {
       setError('Ocurrió un error al cargar el perfil');
     } finally {
@@ -83,40 +88,38 @@ export default function PerfilAdmin() {
   };
 
   const subirFoto = async (): Promise<string | null> => {
-  if (!perfil || !archivoFoto) return perfil?.foto_url || null;
+    if (!perfil || !archivoFoto) return perfil?.foto_url || null;
 
-  try {
-    setSubiendoFoto(true);
+    try {
+      setSubiendoFoto(true);
 
-    const extension = archivoFoto.name.split('.').pop() || 'png';
-    const filePath = `${perfil.id}/perfil.${extension}`;
+      const extension = archivoFoto.name.split('.').pop() || 'png';
+      const filePath = `${perfil.id}/perfil.${extension}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('perfiles')
-      .upload(filePath, archivoFoto, {
-        upsert: true,
-        contentType: archivoFoto.type,
-      });
+      const { error: uploadError } = await supabase.storage
+        .from('perfiles')
+        .upload(filePath, archivoFoto, {
+          upsert: true,
+          contentType: archivoFoto.type,
+        });
 
-    if (uploadError) {
-      alert('No se pudo subir la foto: ' + uploadError.message);
+      if (uploadError) {
+        alert('No se pudo subir la foto: ' + uploadError.message);
+        return null;
+      }
+
+      const { data } = supabase.storage
+        .from('perfiles')
+        .getPublicUrl(filePath);
+
+      return `${data.publicUrl}?t=${Date.now()}`;
+    } catch {
+      alert('Ocurrió un error al subir la foto');
       return null;
+    } finally {
+      setSubiendoFoto(false);
     }
-
-    const { data } = supabase.storage
-      .from('perfiles')
-      .getPublicUrl(filePath);
-
-    console.log('URL PÚBLICA FOTO:', data.publicUrl);
-
-    return data.publicUrl;
-  } catch {
-    alert('Ocurrió un error al subir la foto');
-    return null;
-  } finally {
-    setSubiendoFoto(false);
-  }
-};
+  };
 
   const guardarPerfil = async () => {
     if (!perfil) return;
@@ -155,9 +158,22 @@ export default function PerfilAdmin() {
         return;
       }
 
-      alert('Perfil actualizado correctamente');
+      const perfilActualizado: PerfilItem = {
+        ...perfil,
+        nombre_completo: formNombre.trim(),
+        correo: formCorreo.trim(),
+        telefono: formTelefono.trim() || null,
+        foto_url: fotoUrlFinal,
+      };
+
+      setPerfil(perfilActualizado);
+      setFotoPreview(fotoUrlFinal || '');
       setArchivoFoto(null);
-      await cargarPerfil();
+
+      localStorage.setItem('perfil', JSON.stringify(perfilActualizado));
+      window.dispatchEvent(new Event('perfil-actualizado'));
+
+      alert('Perfil actualizado correctamente');
     } catch {
       alert('Ocurrió un error al guardar');
     } finally {
@@ -165,258 +181,267 @@ export default function PerfilAdmin() {
     }
   };
 
+  const getRolTexto = (rol: string): string => {
+    if (rol === 'admin') return 'Administrador';
+    if (rol === 'doctor') return 'Doctor';
+    if (rol === 'paciente') return 'Paciente';
+    return rol;
+  };
+
+  const getEstadoColor = (estado: string): React.CSSProperties => {
+    return estado === 'activo' ? styles.badgeActive : styles.badgeInactive;
+  };
+
   return (
     <AdminLayout
-      titulo="Mi perfil"
+      titulo="Mi Perfil"
       subtitulo="Información personal del administrador"
     >
       {cargando ? (
-        <section style={localStyles.estadoBox}>
-          <p style={styles.emptyStateText}>Cargando perfil...</p>
-        </section>
+        <div style={styles.emptyState}>Cargando perfil...</div>
       ) : error ? (
-        <section style={localStyles.estadoBox}>
-          <p style={{ ...styles.emptyStateText, color: '#dc2626' }}>{error}</p>
-        </section>
+        <div style={{ ...styles.emptyState, color: '#F87171' }}>{error}</div>
       ) : !perfil ? (
-        <section style={localStyles.estadoBox}>
-          <p style={styles.emptyStateText}>No se encontró el perfil</p>
-        </section>
+        <div style={styles.emptyState}>No se encontró el perfil</div>
       ) : (
         <>
-          <section style={styles.gridCards}>
+          <div style={styles.cardsGrid}>
             <div style={styles.card}>
-              <p style={styles.cardTitulo}>Rol</p>
-              <h3 style={styles.cardValor}>{perfil.rol}</h3>
-              <p style={styles.cardSubtitulo}>Tipo de usuario actual</p>
+              <p style={styles.cardTitle}>Rol</p>
+              <h3 style={styles.cardValue}>{getRolTexto(perfil.rol)}</h3>
+              <p style={styles.cardSubtitle}>Tipo de usuario actual</p>
             </div>
 
             <div style={styles.card}>
-              <p style={styles.cardTitulo}>Estado</p>
-              <h3 style={styles.cardValor}>{perfil.estado}</h3>
-              <p style={styles.cardSubtitulo}>Estado de la cuenta</p>
-            </div>
-
-            <div style={styles.card}>
-              <p style={styles.cardTitulo}>Correo</p>
-              <h3 style={localStyles.cardTexto}>{perfil.correo}</h3>
-              <p style={styles.cardSubtitulo}>Correo principal</p>
-            </div>
-
-            <div style={styles.card}>
-              <p style={styles.cardTitulo}>Fecha registro</p>
-              <h3 style={localStyles.cardTexto}>
-                {perfil.creado_en
-                  ? new Date(perfil.creado_en).toLocaleDateString()
-                  : 'Sin fecha'}
+              <p style={styles.cardTitle}>Estado</p>
+              <h3 style={styles.cardValue}>
+                <span style={getEstadoColor(perfil.estado)}>
+                  {perfil.estado === 'activo' ? 'Activo' : 'Inactivo'}
+                </span>
               </h3>
-              <p style={styles.cardSubtitulo}>Alta en el sistema</p>
+              <p style={styles.cardSubtitle}>Estado de la cuenta</p>
             </div>
-          </section>
 
-          <section style={localStyles.gridPerfil}>
-            <div style={localStyles.cardPerfil}>
-              <h2 style={localStyles.tituloSeccion}>Foto de perfil</h2>
+            <div style={styles.card}>
+              <p style={styles.cardTitle}>Correo electrónico</p>
+              <h3 style={{ ...styles.cardValue, fontSize: '24px' }}>{perfil.correo}</h3>
+              <p style={styles.cardSubtitle}>Correo principal</p>
+            </div>
 
-              <div style={localStyles.fotoBox}>
+            <div style={styles.card}>
+              <p style={styles.cardTitle}>Fecha de registro</p>
+              <h3 style={styles.cardValue}>
+                {perfil.creado_en
+                  ? new Date(perfil.creado_en).toLocaleDateString('es-ES', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                    })
+                  : '—'}
+              </h3>
+              <p style={styles.cardSubtitle}>Alta en el sistema</p>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '24px' }}>
+            <div style={styles.card}>
+              <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#FFFFFF', margin: '0 0 20px 0' }}>
+                Foto de perfil
+              </h2>
+
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
                 {fotoPreview ? (
-                  <img src={fotoPreview} alt="Foto de perfil" style={localStyles.fotoPerfil} />
+                  <div style={{ position: 'relative' }}>
+                    <img
+                      src={fotoPreview}
+                      alt="Foto de perfil"
+                      style={{
+                        width: '180px',
+                        height: '180px',
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        border: '4px solid #319795',
+                        boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '10px',
+                        right: '10px',
+                        background: '#319795',
+                        borderRadius: '50%',
+                        width: '36px',
+                        height: '36px',
+                        border: '2px solid #0F172A',
+                      }}
+                    />
+                  </div>
                 ) : (
-                  <div style={localStyles.fotoVacia}>Sin foto</div>
+                  <div
+                    style={{
+                      width: '180px',
+                      height: '180px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #319795 0%, #1a5a58 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '48px',
+                      fontWeight: 'bold',
+                      color: '#FFFFFF',
+                    }}
+                  >
+                    {perfil.nombre_completo?.charAt(0).toUpperCase() || 'U'}
+                  </div>
                 )}
               </div>
 
-              <div style={localStyles.formGrupo}>
-                <label style={localStyles.label}>Seleccionar imagen</label>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Seleccionar imagen</label>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={seleccionarFoto}
-                  style={localStyles.inputArchivo}
+                  style={{ ...styles.input, padding: '10px' }}
                 />
               </div>
 
-              <p style={localStyles.textoAyuda}>
-                Formatos recomendados: JPG o PNG.
+              <p style={{ fontSize: '12px', color: '#64748B', margin: '12px 0 0' }}>
+                Formatos recomendados: JPG, PNG. Tamaño máximo: 5MB
               </p>
             </div>
 
-            <div style={localStyles.cardPerfil}>
-              <h2 style={localStyles.tituloSeccion}>Datos del perfil</h2>
+            <div style={styles.card}>
+              <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#FFFFFF', margin: '0 0 20px 0' }}>
+                Datos del perfil
+              </h2>
 
-              <div style={localStyles.formGrupo}>
-                <label style={localStyles.label}>Nombre completo</label>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Nombre completo *</label>
                 <input
                   type="text"
                   value={formNombre}
                   onChange={(e) => setFormNombre(e.target.value)}
-                  style={localStyles.input}
+                  style={styles.input}
+                  placeholder="Tu nombre completo"
                 />
               </div>
 
-              <div style={localStyles.formGrupo}>
-                <label style={localStyles.label}>Correo</label>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Correo electrónico *</label>
                 <input
                   type="email"
                   value={formCorreo}
                   onChange={(e) => setFormCorreo(e.target.value)}
-                  style={localStyles.input}
+                  style={styles.input}
+                  placeholder="tu@email.com"
                 />
               </div>
 
-              <div style={localStyles.formGrupo}>
-                <label style={localStyles.label}>Teléfono</label>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Teléfono</label>
                 <input
-                  type="text"
+                  type="tel"
                   value={formTelefono}
                   onChange={(e) => setFormTelefono(e.target.value)}
-                  style={localStyles.input}
+                  style={styles.input}
+                  placeholder="+591 12345678"
                 />
               </div>
 
-              <div style={localStyles.formGrupo}>
-                <label style={localStyles.label}>Rol</label>
-                <input
-                  type="text"
-                  value={perfil.rol}
-                  disabled
-                  style={localStyles.inputDeshabilitado}
-                />
+              <div style={styles.rowTwoColumns}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Rol</label>
+                  <input
+                    type="text"
+                    value={getRolTexto(perfil.rol)}
+                    disabled
+                    style={{ ...styles.input, opacity: 0.7, cursor: 'not-allowed' }}
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Estado</label>
+                  <input
+                    type="text"
+                    value={perfil.estado === 'activo' ? 'Activo' : 'Inactivo'}
+                    disabled
+                    style={{ ...styles.input, opacity: 0.7, cursor: 'not-allowed' }}
+                  />
+                </div>
               </div>
 
-              <div style={localStyles.formGrupo}>
-                <label style={localStyles.label}>Estado</label>
-                <input
-                  type="text"
-                  value={perfil.estado}
-                  disabled
-                  style={localStyles.inputDeshabilitado}
-                />
-              </div>
-
-              <div style={localStyles.acciones}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px', gap: '12px' }}>
                 <button
-                  style={styles.botonPrincipal}
+                  style={styles.btnSecondary}
+                  onClick={() => {
+                    if (perfil) {
+                      setFormNombre(perfil.nombre_completo || '');
+                      setFormCorreo(perfil.correo || '');
+                      setFormTelefono(perfil.telefono || '');
+                      setArchivoFoto(null);
+                      setFotoPreview(perfil.foto_url || '');
+                    }
+                  }}
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  style={styles.btnPrimary}
                   onClick={guardarPerfil}
                   disabled={guardando || subiendoFoto}
                 >
-                  {guardando || subiendoFoto ? 'Guardando...' : 'Guardar cambios'}
+                  {guardando || subiendoFoto ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={styles.spinner}></span>
+                      Guardando...
+                    </span>
+                  ) : (
+                    'Guardar cambios'
+                  )}
                 </button>
               </div>
             </div>
-          </section>
+          </div>
+
+          <div style={{ ...styles.card, marginTop: '24px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#FFFFFF', margin: '0 0 16px 0' }}>
+              Información de la cuenta
+            </h2>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
+              <div>
+                <p style={{ fontSize: '12px', color: '#94A3B8', margin: 0 }}>ID de usuario</p>
+                <p style={{ fontSize: '13px', fontFamily: 'monospace', color: '#CBD5E1', margin: '4px 0 0' }}>
+                  {perfil.id}
+                </p>
+              </div>
+
+              <div>
+                <p style={{ fontSize: '12px', color: '#94A3B8', margin: 0 }}>Última actualización</p>
+                <p style={{ fontSize: '13px', color: '#CBD5E1', margin: '4px 0 0' }}>
+                  {new Date().toLocaleDateString('es-ES', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </div>
+
+              <div>
+                <p style={{ fontSize: '12px', color: '#94A3B8', margin: 0 }}>Permisos</p>
+                <p style={{ fontSize: '13px', color: '#CBD5E1', margin: '4px 0 0' }}>
+                  {perfil.rol === 'admin' ? 'Acceso total al sistema' : 'Acceso restringido'}
+                </p>
+              </div>
+            </div>
+          </div>
         </>
       )}
     </AdminLayout>
   );
 }
-
-const localStyles: Record<string, React.CSSProperties> = {
-  estadoBox: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '280px',
-  },
-  gridPerfil: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1.4fr',
-    gap: '20px',
-  },
-  cardPerfil: {
-    background: '#FFFFFF',
-    borderRadius: '24px',
-    padding: '24px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-  },
-  tituloSeccion: {
-    margin: '0 0 20px',
-    color: '#0A2540',
-    fontSize: '22px',
-    fontWeight: '700',
-  },
-  fotoBox: {
-    display: 'flex',
-    justifyContent: 'center',
-    marginBottom: '20px',
-  },
-  fotoPerfil: {
-    width: '160px',
-    height: '160px',
-    borderRadius: '50%',
-    objectFit: 'cover',
-    border: '4px solid #E2E8F0',
-  },
-  fotoVacia: {
-    width: '160px',
-    height: '160px',
-    borderRadius: '50%',
-    background: '#F1F5F9',
-    color: '#64748B',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: '600',
-    border: '2px dashed #CBD5E1',
-  },
-  formGrupo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    marginBottom: '16px',
-  },
-  label: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#334155',
-  },
-  input: {
-    width: '100%',
-    padding: '14px 16px',
-    border: '1px solid #CBD5E1',
-    borderRadius: '14px',
-    fontSize: '14px',
-    backgroundColor: '#FFFFFF',
-    color: '#0F172A',
-    boxSizing: 'border-box',
-    outline: 'none',
-  },
-  inputDeshabilitado: {
-    width: '100%',
-    padding: '14px 16px',
-    border: '1px solid #E2E8F0',
-    borderRadius: '14px',
-    fontSize: '14px',
-    backgroundColor: '#F8FAFC',
-    color: '#64748B',
-    boxSizing: 'border-box',
-    outline: 'none',
-  },
-  inputArchivo: {
-    width: '100%',
-    padding: '12px',
-    border: '1px solid #CBD5E1',
-    borderRadius: '14px',
-    background: '#FFFFFF',
-    color: '#0F172A',
-    boxSizing: 'border-box',
-  },
-  textoAyuda: {
-    margin: 0,
-    color: '#64748B',
-    fontSize: '13px',
-  },
-  acciones: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    marginTop: '20px',
-  },
-  cardTexto: {
-    fontSize: '20px',
-    fontWeight: '700',
-    color: '#0A2540',
-    margin: '0 0 8px',
-    letterSpacing: '-0.02em',
-    wordBreak: 'break-word',
-  },
-};
