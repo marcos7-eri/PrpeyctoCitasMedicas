@@ -18,7 +18,7 @@ interface CitaProxima {
 export default function DashboardDoctor() {
   const router = useRouter();
   const [cargando, setCargando] = useState(true);
-  const [stats, setStats] = useState({ citasHoy: 0, citasPendientes: 0, totalPacientes: 0, notificacionesNoLeidas: 0 });
+  const [stats, setStats] = useState({ citasHoy: 0, citasPendientes: 0, totalPacientes: 0, notificacionesNoLeidas: 0, horariosActivos: 0, atendidosHoy: 0 });
   const [citasProximas, setCitasProximas] = useState<CitaProxima[]>([]);
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [perfilId, setPerfilId] = useState<string | null>(null);
@@ -42,15 +42,18 @@ export default function DashboardDoctor() {
     try {
       setCargando(true);
       const hoy = new Date().toISOString().split('T')[0];
-      const [citas, notificaciones] = await Promise.all([
+      const [citas, notificaciones, horarios] = await Promise.all([
         api.get<any[]>(`/citas?doctor_id=${doctorId}`),
         api.get<any[]>(`/notificaciones?usuario_id=${perfilId}`),
+        api.get<any[]>(`/horarios?doctor_id=${doctorId}&activo=true`),
       ]);
 
       const citasHoy = citas.filter((c: any) => c.fecha === hoy).length;
+      const atendidosHoy = citas.filter((c: any) => c.fecha === hoy && c.estado === 'completada').length;
       const citasPendientes = citas.filter((c: any) => c.estado === 'pendiente').length;
       const pacientesUnicos = new Set(citas.map((c: any) => c.paciente_id).filter(Boolean));
       const notificacionesNoLeidas = notificaciones.filter((n: any) => !n.leido).length;
+      const horariosActivos = (horarios || []).length;
 
       const proximas = citas
         .filter((c: any) => c.fecha >= hoy)
@@ -65,20 +68,20 @@ export default function DashboardDoctor() {
           motivo: cita.motivo,
         }));
 
-      setStats({ citasHoy, citasPendientes, totalPacientes: pacientesUnicos.size, notificacionesNoLeidas });
+      setStats({ citasHoy, citasPendientes, totalPacientes: pacientesUnicos.size, notificacionesNoLeidas, horariosActivos, atendidosHoy });
       setCitasProximas(proximas);
     } catch (error) { console.error('Error cargando dashboard:', error); } finally { setCargando(false); }
   };
 
   const getEstadoBadge = (estado: string): React.CSSProperties => {
     if (estado === 'pendiente') return styles.badgePendiente;
-    if (estado === 'confirmado') return styles.badgeConfirmado;
+    if (estado === 'confirmada') return styles.badgeConfirmado;
     if (estado === 'cancelada') return styles.badgeCancelada;
     if (estado === 'completada') return styles.badgeCompletada;
     return styles.badgePendiente;
   };
 
-  const getEstadoTexto = (estado: string) => ({ pendiente: 'Pendiente', confirmado: 'Confirmada', cancelada: 'Cancelada', completada: 'Completada' }[estado] || estado);
+  const getEstadoTexto = (estado: string) => ({ pendiente: 'Pendiente', confirmada: 'Confirmada', cancelada: 'Cancelada', completada: 'Completada' }[estado] || estado);
 
   if (cargando) return <div style={styles.emptyState}><p>Cargando panel de control...</p></div>;
 
@@ -87,7 +90,7 @@ export default function DashboardDoctor() {
       <div style={styles.cardsGrid}>
         <div style={styles.card}><p style={styles.cardTitle}>Citas de hoy</p><h3 style={styles.cardValue}>{stats.citasHoy}</h3><p style={styles.cardSubtitle}>{stats.citasPendientes} pendientes</p></div>
         <div style={styles.card}><p style={styles.cardTitle}>Pacientes atendidos</p><h3 style={styles.cardValue}>{stats.totalPacientes}</h3><p style={styles.cardSubtitle}>Total de pacientes</p></div>
-        <div style={styles.card}><p style={styles.cardTitle}>Horarios activos</p><h3 style={styles.cardValue}>0</h3><p style={styles.cardSubtitle}>Configurar horarios</p></div>
+        <div style={styles.card}><p style={styles.cardTitle}>Horarios activos</p><h3 style={styles.cardValue}>{stats.horariosActivos}</h3><p style={styles.cardSubtitle}>Configurar horarios</p></div>
         <div style={styles.card}><p style={styles.cardTitle}>Notificaciones</p><h3 style={styles.cardValue}>{stats.notificacionesNoLeidas}</h3><p style={styles.cardSubtitle}>Sin leer</p></div>
       </div>
 
@@ -134,7 +137,7 @@ export default function DashboardDoctor() {
             <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#FFFFFF', margin: '0 0 16px 0' }}>Resumen del día</h3>
             <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
               <div><p style={{ fontSize: '28px', fontWeight: '700', color: '#319795', margin: 0 }}>{stats.citasHoy}</p><p style={{ fontSize: '12px', color: '#94A3B8', margin: '4px 0 0' }}>Citas</p></div>
-              <div><p style={{ fontSize: '28px', fontWeight: '700', color: '#319795', margin: 0 }}>0</p><p style={{ fontSize: '12px', color: '#94A3B8', margin: '4px 0 0' }}>Atendidos</p></div>
+              <div><p style={{ fontSize: '28px', fontWeight: '700', color: '#319795', margin: 0 }}>{stats.atendidosHoy}</p><p style={{ fontSize: '12px', color: '#94A3B8', margin: '4px 0 0' }}>Atendidos</p></div>
               <div><p style={{ fontSize: '28px', fontWeight: '700', color: '#319795', margin: 0 }}>{stats.citasPendientes}</p><p style={{ fontSize: '12px', color: '#94A3B8', margin: '4px 0 0' }}>Pendientes</p></div>
             </div>
           </div>

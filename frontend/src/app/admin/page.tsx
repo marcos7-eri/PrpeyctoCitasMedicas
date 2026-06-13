@@ -78,14 +78,14 @@ export default function DashboardAdmin() {
   const getEstadoBadge = (estado: string): React.CSSProperties => {
     const v = estado.toLowerCase();
     if (v === 'pendiente') return styles.badgePendiente;
-    if (v === 'confirmado') return styles.badgeConfirmado;
+    if (v === 'confirmada') return styles.badgeConfirmado;
     if (v === 'cancelada') return styles.badgeCancelada;
     if (v === 'completada') return styles.badgeCompletada;
     return styles.badgePendiente;
   };
 
   const getEstadoTexto = (estado: string): string => {
-    const textos: Record<string, string> = { pendiente: 'Pendiente', confirmado: 'Confirmada', cancelada: 'Cancelada', completada: 'Completada' };
+    const textos: Record<string, string> = { pendiente: 'Pendiente', confirmada: 'Confirmada', cancelada: 'Cancelada', completada: 'Completada' };
     return textos[estado?.toLowerCase()] || estado;
   };
 

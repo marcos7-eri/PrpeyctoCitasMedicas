@@ -110,6 +110,77 @@ let CitasService = class CitasService {
             throw new common_1.InternalServerErrorException(err.message || 'Error interno del servidor');
         }
     }
+    async confirmar(id) {
+        try {
+            const { data: cita, error: errCita } = await this.supabaseService.client
+                .from('citas')
+                .select(`id, fecha, hora_inicio, estado, pacientes(perfil_id, perfiles(nombre_completo)), doctores(perfiles(nombre_completo))`)
+                .eq('id', id)
+                .single();
+            if (errCita || !cita)
+                throw new common_1.BadRequestException(`Cita no encontrada (id=${id})`);
+            if (cita.estado !== 'pendiente')
+                throw new common_1.BadRequestException(`La cita tiene estado "${cita.estado}", solo se pueden confirmar citas pendientes`);
+            const { data, error } = await this.supabaseService.client
+                .from('citas').update({ estado: 'confirmada' }).eq('id', id).select().single();
+            if (error)
+                throw new common_1.BadRequestException(error.message);
+            this.audit('update', id, { estado: 'confirmada' });
+            const pacUserId = cita.pacientes?.perfil_id;
+            if (pacUserId) {
+                const docNombre = cita.doctores?.perfiles?.nombre_completo ?? 'Tu doctor';
+                const hora = String(cita.hora_inicio ?? '').substring(0, 5);
+                this.notificacionesService.create({
+                    usuario_id: pacUserId,
+                    titulo: 'Cita confirmada',
+                    mensaje: `${docNombre} confirmó tu cita del ${cita.fecha} a las ${hora}.`,
+                    tipo: 'confirmacion',
+                }).catch(() => { });
+            }
+            return data;
+        }
+        catch (err) {
+            if (err instanceof common_1.BadRequestException)
+                throw err;
+            throw new common_1.InternalServerErrorException(err.message || 'Error interno del servidor');
+        }
+    }
+    async completar(id) {
+        try {
+            const { data: cita, error: errCita } = await this.supabaseService.client
+                .from('citas')
+                .select(`id, fecha, hora_inicio, estado, pacientes(perfil_id, perfiles(nombre_completo)), doctores(perfiles(nombre_completo))`)
+                .eq('id', id)
+                .single();
+            if (errCita || !cita)
+                throw new common_1.BadRequestException('Cita no encontrada');
+            if (!['pendiente', 'confirmada'].includes(cita.estado)) {
+                throw new common_1.BadRequestException('Solo se pueden completar citas pendientes o confirmadas');
+            }
+            const { data, error } = await this.supabaseService.client
+                .from('citas').update({ estado: 'completada' }).eq('id', id).select().single();
+            if (error)
+                throw new common_1.BadRequestException(error.message);
+            this.audit('update', id, { estado: 'completada' });
+            const pacUserId = cita.pacientes?.perfil_id;
+            if (pacUserId) {
+                const docNombre = cita.doctores?.perfiles?.nombre_completo ?? 'Tu doctor';
+                const hora = String(cita.hora_inicio ?? '').substring(0, 5);
+                this.notificacionesService.create({
+                    usuario_id: pacUserId,
+                    titulo: 'Cita completada',
+                    mensaje: `Tu cita con ${docNombre} del ${cita.fecha} a las ${hora} fue marcada como completada.`,
+                    tipo: 'confirmacion',
+                }).catch(() => { });
+            }
+            return data;
+        }
+        catch (err) {
+            if (err instanceof common_1.BadRequestException)
+                throw err;
+            throw new common_1.InternalServerErrorException(err.message || 'Error interno del servidor');
+        }
+    }
     async cancelar(id, motivo) {
         try {
             const { data: cita, error: errCita } = await this.supabaseService.client

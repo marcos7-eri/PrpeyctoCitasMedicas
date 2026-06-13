@@ -59,6 +59,8 @@ export default function NotificacionesDoctor() {
     if (tipo === 'sistema') return styles.badgeCancelada;
     if (tipo === 'recordatorio') return styles.badgePendiente;
     if (tipo === 'cita') return styles.badgeCompletada;
+    if (tipo === 'confirmacion') return styles.badgeCompletada;
+    if (tipo === 'cancelacion') return styles.badgeCancelada;
     return styles.badgeConfirmado;
   };
 

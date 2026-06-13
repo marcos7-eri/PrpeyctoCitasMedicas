@@ -24,7 +24,7 @@ let NotificacionesService = NotificacionesService_1 = class NotificacionesServic
         try {
             let query = this.supabaseService.client
                 .from('notificaciones')
-                .select('id, usuario_id, titulo, mensaje, tipo, leido, fecha_envio')
+                .select('id, usuario_id, titulo, mensaje, tipo, leido, fecha_envio, perfiles(nombre_completo, correo)')
                 .order('fecha_envio', { ascending: false });
             if (usuarioId)
                 query = query.eq('usuario_id', usuarioId);

@@ -1,8 +1,7 @@
 {
-  "/login/page": "app/login/page.js",
-  "/doctor/pacientes/page": "app/doctor/pacientes/page.js",
   "/doctor/page": "app/doctor/page.js",
-  "/admin/page": "app/admin/page.js",
-  "/admin/reportes/page": "app/admin/reportes/page.js",
-  "/admin/auditoria/page": "app/admin/auditoria/page.js"
+  "/doctor/notificaciones/page": "app/doctor/notificaciones/page.js",
+  "/doctor/perfil/page": "app/doctor/perfil/page.js",
+  "/doctor/citas/page": "app/doctor/citas/page.js",
+  "/doctor/horarios/page": "app/doctor/horarios/page.js"
 }

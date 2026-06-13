@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   RefreshControl, Linking, ActivityIndicator,
-  Animated, Dimensions,
+  Animated, Dimensions, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -23,7 +23,7 @@ const C = {
 };
 
 const ACCIONES = [
-  { screen: 'Reservar',       icon: 'calendar-plus-outline', label: 'Reservar\ncita',   color: C.primary,  bg: '#0F3035' },
+  { screen: 'Reservar',       icon: 'calendar-outline',       label: 'Reservar\ncita',   color: C.primary,  bg: '#0F3035' },
   { screen: 'MisCitas',       icon: 'document-text-outline',  label: 'Mis\ncitas',       color: '#60A5FA',  bg: '#0F1C35' },
   { screen: 'Notificaciones', icon: 'notifications-outline',  label: 'Notifi-\ncaciones', color: C.warning, bg: '#2C1F0A' },
   { screen: 'Perfil',         icon: 'person-circle-outline',  label: 'Mi\nperfil',        color: C.accent,   bg: '#1A1035' },
@@ -143,7 +143,7 @@ export default function DashboardPaciente() {
         {/* ── TOP BAR ─────────────────────────────────── */}
         <Animated.View style={[s.topBar, { opacity: topOp, transform: [{ translateY: topY }] }]}>
           <View>
-            <Text style={s.saludoTxt}>{saludo} 👋</Text>
+            <Text style={s.saludoTxt}>{saludo}</Text>
             <Text style={s.nombreTxt}>{primerNombre}</Text>
           </View>
           <View style={s.topActions}>
@@ -159,7 +159,10 @@ export default function DashboardPaciente() {
               )}
             </TouchableOpacity>
             <TouchableOpacity style={s.avatarPill} onPress={() => nav.navigate('Perfil')}>
-              <Text style={s.avatarPillTxt}>{iniciales}</Text>
+              {perfil?.foto_url
+                ? <Image source={{ uri: perfil.foto_url }} style={s.avatarPillImg} />
+                : <Text style={s.avatarPillTxt}>{iniciales}</Text>
+              }
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -349,6 +352,7 @@ const s = StyleSheet.create({
     borderWidth: 2, borderColor: C.primary + '55',
   },
   avatarPillTxt: { color: C.primary, fontSize: 15, fontWeight: '800' },
+  avatarPillImg: { width: 42, height: 42, borderRadius: 21 },
 
   /* Hero */
   heroWrap: { marginHorizontal: 20, marginBottom: 16 },

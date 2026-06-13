@@ -129,20 +129,20 @@ export default function CitasAdmin() {
   const resumen = useMemo(() => ({
     total: citas.length,
     pendientes: citas.filter((c) => c.estado === 'pendiente').length,
-    confirmados: citas.filter((c) => c.estado === 'confirmado').length,
+    confirmados: citas.filter((c) => c.estado === 'confirmada').length,
     canceladas: citas.filter((c) => c.estado === 'cancelada').length,
   }), [citas]);
 
   const getEstadoBadge = (estado: string): React.CSSProperties => {
     if (estado === 'pendiente') return styles.badgePendiente;
-    if (estado === 'confirmado') return styles.badgeConfirmado;
+    if (estado === 'confirmada') return styles.badgeConfirmado;
     if (estado === 'cancelada') return styles.badgeCancelada;
     if (estado === 'completada') return styles.badgeCompletada;
     return styles.badgePendiente;
   };
 
   const getEstadoTexto = (estado: string): string => {
-    const map: Record<string, string> = { pendiente: 'PENDIENTE', confirmado: 'CONFIRMADA', cancelada: 'CANCELADA', completada: 'COMPLETADA' };
+    const map: Record<string, string> = { pendiente: 'PENDIENTE', confirmada: 'CONFIRMADA', cancelada: 'CANCELADA', completada: 'COMPLETADA' };
     return map[estado] || estado.toUpperCase();
   };
 
@@ -160,7 +160,7 @@ export default function CitasAdmin() {
           <input type="text" placeholder="Buscar por paciente, doctor o motivo..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={styles.input} />
           <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} style={styles.select}>
             <option value="todos">Todos los estados</option>
-            <option value="pendiente">Pendiente</option><option value="confirmado">Confirmado</option>
+            <option value="pendiente">Pendiente</option><option value="confirmada">Confirmada</option>
             <option value="cancelada">Cancelada</option><option value="completada">Completada</option>
           </select>
           <button style={styles.btnSecondary} onClick={cargarCitas}>Recargar</button>
@@ -193,9 +193,9 @@ export default function CitasAdmin() {
                     <td style={styles.td}>
                       <div style={styles.actionsRow}>
                         <button style={styles.btnView} onClick={() => setCitaDetalle(cita)}>Ver</button>
-                        {cita.estado === 'pendiente' && <button style={styles.btnEdit} onClick={() => cambiarEstado(cita, 'confirmado')} disabled={procesandoId === cita.id}>Confirmar</button>}
-                        {cita.estado === 'confirmado' && <button style={styles.btnPrimary} onClick={() => cambiarEstado(cita, 'completada')} disabled={procesandoId === cita.id}>Completar</button>}
-                        {(cita.estado === 'pendiente' || cita.estado === 'confirmado') && <button style={styles.btnDelete} onClick={() => cancelarCita(cita)} disabled={procesandoId === cita.id}>Cancelar</button>}
+                        {cita.estado === 'pendiente' && <button style={styles.btnEdit} onClick={() => cambiarEstado(cita, 'confirmada')} disabled={procesandoId === cita.id}>Confirmar</button>}
+                        {cita.estado === 'confirmada' && <button style={styles.btnPrimary} onClick={() => cambiarEstado(cita, 'completada')} disabled={procesandoId === cita.id}>Completar</button>}
+                        {(cita.estado === 'pendiente' || cita.estado === 'confirmada') && <button style={styles.btnDelete} onClick={() => cancelarCita(cita)} disabled={procesandoId === cita.id}>Cancelar</button>}
                       </div>
                     </td>
                   </tr>

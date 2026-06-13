@@ -21,15 +21,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    // Al arrancar, si el refresh token guardado no es válido, limpia la sesión
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) {
+        supabase.auth.signOut();
+        setSession(null);
+      } else {
+        setSession(data.session);
+      }
       setLoading(false);
     });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' || !session) {
+        setSession(session);
+      } else {
+        setSession(session);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -37,6 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    setSession(null);
   };
 
   return (

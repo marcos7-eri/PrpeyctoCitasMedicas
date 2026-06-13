@@ -114,15 +114,19 @@ export default function NotificacionesAdmin() {
     if (t === 'sistema') return styles.badgeCancelada;
     if (t === 'recordatorio') return styles.badgePendiente;
     if (t === 'cita') return styles.badgeCompletada;
+    if (t === 'confirmacion') return styles.badgeConfirmado;
+    if (t === 'cancelacion') return styles.badgeCancelada;
     return styles.badgeConfirmado;
   };
 
   const getTipoIcono = (tipo: string): string => {
     const t = (tipo || '').toLowerCase();
-    if (t === 'sistema') return '🔧';
-    if (t === 'recordatorio') return '⏰';
-    if (t === 'cita') return '📅';
-    return '📢';
+    if (t === 'sistema') return '⚙';
+    if (t === 'recordatorio') return '○';
+    if (t === 'cita') return '◆';
+    if (t === 'confirmacion') return '✓';
+    if (t === 'cancelacion') return '✕';
+    return '▶';
   };
 
   return (
@@ -139,6 +143,7 @@ export default function NotificacionesAdmin() {
           <input type="text" placeholder="Buscar por título, mensaje o usuario..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={styles.input} />
           <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)} style={styles.select}>
             <option value="todos">Todos los tipos</option><option value="general">General</option>
+            <option value="confirmacion">Confirmación</option><option value="cancelacion">Cancelación</option>
             <option value="sistema">Sistema</option><option value="recordatorio">Recordatorio</option><option value="cita">Cita</option>
           </select>
           <select value={filtroLeido} onChange={(e) => setFiltroLeido(e.target.value)} style={styles.select}>
@@ -206,7 +211,8 @@ export default function NotificacionesAdmin() {
             <div style={styles.formGroup}>
               <label style={styles.label}>Tipo de notificación</label>
               <select value={nuevoTipo} onChange={(e) => setNuevoTipo(e.target.value)} style={styles.select}>
-                <option value="general">General</option><option value="sistema">Sistema</option>
+                <option value="general">General</option><option value="confirmacion">Confirmación</option>
+                <option value="cancelacion">Cancelación</option><option value="sistema">Sistema</option>
                 <option value="recordatorio">Recordatorio</option><option value="cita">Cita médica</option>
               </select>
             </div>
@@ -227,7 +233,8 @@ export default function NotificacionesAdmin() {
             <div style={styles.formGroup}>
               <label style={styles.label}>Tipo</label>
               <select value={formTipo} onChange={(e) => setFormTipo(e.target.value)} style={styles.select}>
-                <option value="general">General</option><option value="sistema">Sistema</option>
+                <option value="general">General</option><option value="confirmacion">Confirmación</option>
+                <option value="cancelacion">Cancelación</option><option value="sistema">Sistema</option>
                 <option value="recordatorio">Recordatorio</option><option value="cita">Cita médica</option>
               </select>
             </div>

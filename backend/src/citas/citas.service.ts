@@ -90,6 +90,80 @@ export class CitasService {
     }
   }
 
+  async confirmar(id: string) {
+    try {
+      const { data: cita, error: errCita } = await this.supabaseService.client
+        .from('citas')
+        .select(`id, fecha, hora_inicio, estado, pacientes(perfil_id, perfiles(nombre_completo)), doctores(perfiles(nombre_completo))`)
+        .eq('id', id)
+        .single();
+
+      if (errCita || !cita) throw new BadRequestException(`Cita no encontrada (id=${id})`);
+      if ((cita as any).estado !== 'pendiente') throw new BadRequestException(`La cita tiene estado "${(cita as any).estado}", solo se pueden confirmar citas pendientes`);
+
+      const { data, error } = await this.supabaseService.client
+        .from('citas').update({ estado: 'confirmada' }).eq('id', id).select().single();
+      if (error) throw new BadRequestException(error.message);
+
+      this.audit('update', id, { estado: 'confirmada' });
+
+      const pacUserId = (cita as any).pacientes?.perfil_id;
+      if (pacUserId) {
+        const docNombre = (cita as any).doctores?.perfiles?.nombre_completo ?? 'Tu doctor';
+        const hora = String((cita as any).hora_inicio ?? '').substring(0, 5);
+        this.notificacionesService.create({
+          usuario_id: pacUserId,
+          titulo:  'Cita confirmada',
+          mensaje: `${docNombre} confirmó tu cita del ${(cita as any).fecha} a las ${hora}.`,
+          tipo:    'confirmacion',
+        }).catch(() => {});
+      }
+
+      return data;
+    } catch (err: any) {
+      if (err instanceof BadRequestException) throw err;
+      throw new InternalServerErrorException(err.message || 'Error interno del servidor');
+    }
+  }
+
+  async completar(id: string) {
+    try {
+      const { data: cita, error: errCita } = await this.supabaseService.client
+        .from('citas')
+        .select(`id, fecha, hora_inicio, estado, pacientes(perfil_id, perfiles(nombre_completo)), doctores(perfiles(nombre_completo))`)
+        .eq('id', id)
+        .single();
+
+      if (errCita || !cita) throw new BadRequestException('Cita no encontrada');
+      if (!['pendiente', 'confirmada'].includes((cita as any).estado)) {
+        throw new BadRequestException('Solo se pueden completar citas pendientes o confirmadas');
+      }
+
+      const { data, error } = await this.supabaseService.client
+        .from('citas').update({ estado: 'completada' }).eq('id', id).select().single();
+      if (error) throw new BadRequestException(error.message);
+
+      this.audit('update', id, { estado: 'completada' });
+
+      const pacUserId = (cita as any).pacientes?.perfil_id;
+      if (pacUserId) {
+        const docNombre = (cita as any).doctores?.perfiles?.nombre_completo ?? 'Tu doctor';
+        const hora = String((cita as any).hora_inicio ?? '').substring(0, 5);
+        this.notificacionesService.create({
+          usuario_id: pacUserId,
+          titulo:  'Cita completada',
+          mensaje: `Tu cita con ${docNombre} del ${(cita as any).fecha} a las ${hora} fue marcada como completada.`,
+          tipo:    'confirmacion',
+        }).catch(() => {});
+      }
+
+      return data;
+    } catch (err: any) {
+      if (err instanceof BadRequestException) throw err;
+      throw new InternalServerErrorException(err.message || 'Error interno del servidor');
+    }
+  }
+
   async cancelar(id: string, motivo?: string) {
     try {
       // Cargar cita con relaciones para notificar al doctor

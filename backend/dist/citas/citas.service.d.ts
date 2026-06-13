@@ -37,6 +37,8 @@ export declare class CitasService {
     }[]>;
     create(body: any): Promise<any>;
     update(id: string, body: any): Promise<any>;
+    confirmar(id: string): Promise<any>;
+    completar(id: string): Promise<any>;
     cancelar(id: string, motivo?: string): Promise<any>;
     reagendar(id: string, nueva_fecha: string, nueva_hora_inicio: string, duracion_cita: number): Promise<any>;
     remove(id: string): Promise<{

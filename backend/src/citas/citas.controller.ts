@@ -20,6 +20,16 @@ export class CitasController {
     return this.citasService.update(id, body);
   }
 
+  @Patch(':id/confirmar')
+  async confirmar(@Param('id') id: string) {
+    return this.citasService.confirmar(id);
+  }
+
+  @Patch(':id/completar')
+  async completar(@Param('id') id: string) {
+    return this.citasService.completar(id);
+  }
+
   @Patch(':id/cancelar')
   async cancelar(@Param('id') id: string, @Body() body: any) {
     return this.citasService.cancelar(id, body?.motivo_cancelacion);

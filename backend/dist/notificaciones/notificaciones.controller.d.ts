@@ -10,6 +10,10 @@ export declare class NotificacionesController {
         tipo: any;
         leido: any;
         fecha_envio: any;
+        perfiles: {
+            nombre_completo: any;
+            correo: any;
+        }[];
     }[]>;
     create(body: any): Promise<any>;
     update(id: string, body: any): Promise<any>;

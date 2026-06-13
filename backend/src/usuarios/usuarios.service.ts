@@ -60,13 +60,14 @@ export class UsuariosService {
 
   async update(id: string, body: any) {
     try {
-      const { nombre_completo, correo, telefono, rol, estado } = body;
+      const { nombre_completo, correo, telefono, rol, estado, foto_url } = body;
       const updateData: Record<string, any> = {};
       if (nombre_completo !== undefined) updateData.nombre_completo = nombre_completo;
       if (correo !== undefined) updateData.correo = correo;
       if (telefono !== undefined) updateData.telefono = telefono;
       if (rol !== undefined) updateData.rol = rol;
       if (estado !== undefined) updateData.estado = estado;
+      if (foto_url !== undefined) updateData.foto_url = foto_url;
 
       const { data, error } = await this.supabaseService.client
         .from('perfiles').update(updateData).eq('id', id).select().single();

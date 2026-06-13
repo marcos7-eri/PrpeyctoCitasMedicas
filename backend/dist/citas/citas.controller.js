@@ -29,6 +29,12 @@ let CitasController = class CitasController {
     async update(id, body) {
         return this.citasService.update(id, body);
     }
+    async confirmar(id) {
+        return this.citasService.confirmar(id);
+    }
+    async completar(id) {
+        return this.citasService.completar(id);
+    }
     async cancelar(id, body) {
         return this.citasService.cancelar(id, body?.motivo_cancelacion);
     }
@@ -63,6 +69,20 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], CitasController.prototype, "update", null);
+__decorate([
+    (0, common_1.Patch)(':id/confirmar'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], CitasController.prototype, "confirmar", null);
+__decorate([
+    (0, common_1.Patch)(':id/completar'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], CitasController.prototype, "completar", null);
 __decorate([
     (0, common_1.Patch)(':id/cancelar'),
     __param(0, (0, common_1.Param)('id')),

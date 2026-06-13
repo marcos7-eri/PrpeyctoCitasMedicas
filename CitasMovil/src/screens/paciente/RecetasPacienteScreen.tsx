@@ -118,9 +118,6 @@ export default function RecetasPacienteScreen() {
       const { data: pac, error: errPac } = await supabase
         .from('pacientes').select('id').eq('perfil_id', user.id).maybeSingle();
 
-      console.log('[Recetas] auth user.id:', user.id);
-      console.log('[Recetas] pac:', pac, 'error:', errPac?.message);
-
       if (!pac) { setLoading(false); return; }
 
       // Paso 2: obtener historiales del paciente
@@ -130,8 +127,6 @@ export default function RecetasPacienteScreen() {
         .eq('paciente_id', pac.id)
         .order('fecha_registro', { ascending: false });
 
-      console.log('[Recetas] historiales:', historiales?.length, 'error:', errH?.message);
-
       if (!historiales || historiales.length === 0) { setLoading(false); return; }
 
       // Paso 3: obtener todas las recetas de esos historiales en una sola query
@@ -140,8 +135,6 @@ export default function RecetasPacienteScreen() {
         .from('recetas')
         .select('id, historial_id, medicamento, dosis, frecuencia, duracion, instrucciones')
         .in('historial_id', ids);
-
-      console.log('[Recetas] recetas encontradas:', recetas?.length, 'error:', errR?.message);
 
       if (!recetas || recetas.length === 0) { setLoading(false); return; }
 

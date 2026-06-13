@@ -17,6 +17,7 @@ export declare class DoctoresService {
             nombre_completo: any;
             correo: any;
             telefono: any;
+            estado: any;
         }[];
         especialidades: {
             nombre: any;

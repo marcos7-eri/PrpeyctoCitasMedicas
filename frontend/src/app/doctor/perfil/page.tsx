@@ -144,7 +144,7 @@ export default function PerfilDoctor() {
         <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#FFFFFF', margin: '0 0 16px 0' }}>Información de la cuenta</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
           <div><p style={{ fontSize: '12px', color: '#94A3B8', margin: 0 }}>ID de usuario</p><p style={{ fontSize: '13px', fontFamily: 'monospace', color: '#CBD5E1', margin: '4px 0 0', wordBreak: 'break-all' }}>{perfil.id}</p></div>
-          <div><p style={{ fontSize: '12px', color: '#94A3B8', margin: 0 }}>Última actualización</p><p style={{ fontSize: '13px', color: '#CBD5E1', margin: '4px 0 0' }}>{new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p></div>
+          <div><p style={{ fontSize: '12px', color: '#94A3B8', margin: 0 }}>Fecha de registro</p><p style={{ fontSize: '13px', color: '#CBD5E1', margin: '4px 0 0' }}>{perfil.creado_en ? new Date(perfil.creado_en).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'}</p></div>
           <div><p style={{ fontSize: '12px', color: '#94A3B8', margin: 0 }}>Permisos</p><p style={{ fontSize: '13px', color: '#CBD5E1', margin: '4px 0 0' }}>{perfil.rol === 'doctor' ? 'Acceso a agenda, pacientes e historial' : 'Acceso restringido'}</p></div>
         </div>
       </div>

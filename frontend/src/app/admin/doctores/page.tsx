@@ -32,6 +32,9 @@ export default function DoctoresAdmin() {
   const [formBiografia, setFormBiografia] = useState('');
   const [formEspecialidadId, setFormEspecialidadId] = useState('');
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+  const [formNombre, setFormNombre] = useState('');
+  const [formTelefono, setFormTelefono] = useState('');
+  const [procesandoEstado, setProcesandoEstado] = useState<string | null>(null);
   const [mostrarModalNuevo, setMostrarModalNuevo] = useState(false);
   const [mostrarDetalle, setMostrarDetalle] = useState<DoctorItem | null>(null);
   const [nuevoNombre, setNuevoNombre] = useState('');
@@ -64,6 +67,8 @@ export default function DoctoresAdmin() {
 
   const abrirEdicion = (doctor: DoctorItem) => {
     setDoctorEditando(doctor);
+    setFormNombre(doctor.perfiles?.nombre_completo || '');
+    setFormTelefono(doctor.perfiles?.telefono || '');
     setFormLicencia(doctor.numero_licencia || '');
     setFormExperiencia(doctor.anios_experiencia ? String(doctor.anios_experiencia) : '');
     setFormCosto(doctor.costo_consulta ? String(doctor.costo_consulta) : '');
@@ -71,21 +76,37 @@ export default function DoctoresAdmin() {
     setFormEspecialidadId(doctor.especialidad_id ? String(doctor.especialidad_id) : '');
   };
 
-  const cerrarEdicion = () => { setDoctorEditando(null); setFormLicencia(''); setFormExperiencia(''); setFormCosto(''); setFormBiografia(''); setFormEspecialidadId(''); };
+  const cerrarEdicion = () => { setDoctorEditando(null); setFormNombre(''); setFormTelefono(''); setFormLicencia(''); setFormExperiencia(''); setFormCosto(''); setFormBiografia(''); setFormEspecialidadId(''); };
 
   const guardarEdicion = async () => {
     if (!doctorEditando) return;
     try {
       setGuardandoEdicion(true);
-      await api.put(`/doctores/${doctorEditando.id}`, {
-        numero_licencia: formLicencia,
-        anios_experiencia: formExperiencia ? Number(formExperiencia) : null,
-        costo_consulta: formCosto ? Number(formCosto) : null,
-        biografia: formBiografia,
-        especialidad_id: formEspecialidadId ? Number(formEspecialidadId) : null,
-      });
+      await Promise.all([
+        api.put(`/doctores/${doctorEditando.id}`, {
+          numero_licencia: formLicencia,
+          anios_experiencia: formExperiencia ? Number(formExperiencia) : null,
+          costo_consulta: formCosto ? Number(formCosto) : null,
+          biografia: formBiografia,
+          especialidad_id: formEspecialidadId ? Number(formEspecialidadId) : null,
+        }),
+        api.put(`/usuarios/${doctorEditando.perfil_id}`, {
+          nombre_completo: formNombre.trim(),
+          telefono: formTelefono.trim() || null,
+        }),
+      ]);
       await cargarDoctores(); cerrarEdicion();
     } catch (e: any) { alert('No se pudo actualizar el doctor: ' + e.message); } finally { setGuardandoEdicion(false); }
+  };
+
+  const toggleEstado = async (doctor: DoctorItem) => {
+    if (!doctor.perfil_id) return;
+    const nuevoEstado = doctor.perfiles?.estado === 'activo' ? 'inactivo' : 'activo';
+    try {
+      setProcesandoEstado(doctor.id);
+      await api.put(`/usuarios/${doctor.perfil_id}`, { estado: nuevoEstado });
+      await cargarDoctores();
+    } catch (e: any) { alert('No se pudo cambiar el estado: ' + e.message); } finally { setProcesandoEstado(null); }
   };
 
   const cerrarNuevo = () => {
@@ -178,6 +199,13 @@ export default function DoctoresAdmin() {
                       <div style={styles.actionsRow}>
                         <button style={styles.btnView} onClick={() => setMostrarDetalle(doctor)}>Ver</button>
                         <button style={styles.btnEdit} onClick={() => abrirEdicion(doctor)}>Editar</button>
+                        <button
+                          style={doctor.perfiles?.estado === 'activo' ? styles.btnDelete : styles.btnEdit}
+                          onClick={() => toggleEstado(doctor)}
+                          disabled={procesandoEstado === doctor.id}
+                        >
+                          {procesandoEstado === doctor.id ? '...' : doctor.perfiles?.estado === 'activo' ? 'Inactivar' : 'Activar'}
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -192,6 +220,8 @@ export default function DoctoresAdmin() {
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
             <h2 style={styles.modalTitle}>Editar doctor</h2>
+            <div style={styles.formGroup}><label style={styles.label}>Nombre completo</label><input type="text" value={formNombre} onChange={(e) => setFormNombre(e.target.value)} style={styles.input} /></div>
+            <div style={styles.formGroup}><label style={styles.label}>Teléfono</label><input type="text" value={formTelefono} onChange={(e) => setFormTelefono(e.target.value)} style={styles.input} /></div>
             <div style={styles.formGroup}>
               <label style={styles.label}>Especialidad</label>
               <select value={formEspecialidadId} onChange={(e) => setFormEspecialidadId(e.target.value)} style={styles.select}>

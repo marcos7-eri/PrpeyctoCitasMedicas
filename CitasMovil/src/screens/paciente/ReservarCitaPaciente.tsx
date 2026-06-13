@@ -14,6 +14,8 @@ import { Especialidad, Doctor, Horario } from '../../types';
 
 const { width } = Dimensions.get('window');
 
+const API_URL = 'http://192.168.1.83:3001/api';
+
 const C = {
   bg: '#060D1A', card: '#0B1829', surface: '#0F2035',
   primary: '#2DD4BF', accent: '#6366F1',
@@ -186,15 +188,34 @@ export default function ReservarCitaPaciente() {
       });
       if (error) throw error;
 
-      const drNombre = (doctor.perfiles as any)?.nombre_completo ?? 'el doctor';
-      await supabase.from('notificaciones').insert({
-        usuario_id:  user.id,
-        titulo:      'Cita reservada exitosamente',
-        mensaje:     `Tu cita con ${drNombre} es el ${formatFecha(fechaObj.fecha)} a las ${horaInicio}.`,
-        tipo:        'confirmacion',
-        leido:       false,
-        fecha_envio: new Date().toISOString(),
-      });
+      const drNombre   = (doctor.perfiles as any)?.nombre_completo ?? 'el doctor';
+      const pacNombre  = user.user_metadata?.nombre_completo ?? user.email ?? 'Un paciente';
+      const now        = new Date().toISOString();
+
+      await Promise.all([
+        // Notificar al paciente (mismo usuario → ANON key OK)
+        supabase.from('notificaciones').insert({
+          usuario_id:  user.id,
+          titulo:      'Cita reservada exitosamente',
+          mensaje:     `Tu cita con ${drNombre} es el ${formatFecha(fechaObj.fecha)} a las ${horaInicio}.`,
+          tipo:        'confirmacion',
+          leido:       false,
+          fecha_envio: now,
+        }),
+        // Notificar al doctor por el backend (SERVICE_ROLE bypasa RLS)
+        doctor.perfil_id
+          ? fetch(`${API_URL}/notificaciones`, {
+              method:  'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body:    JSON.stringify({
+                usuario_id: doctor.perfil_id,
+                titulo:     'Nueva cita agendada',
+                mensaje:    `${pacNombre} agendó una cita para el ${formatFecha(fechaObj.fecha)} a las ${horaInicio}.`,
+                tipo:       'confirmacion',
+              }),
+            }).catch(() => {})
+          : Promise.resolve(),
+      ]);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(

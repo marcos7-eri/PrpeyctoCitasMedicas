@@ -72,7 +72,7 @@ let UsuariosService = class UsuariosService {
     }
     async update(id, body) {
         try {
-            const { nombre_completo, correo, telefono, rol, estado } = body;
+            const { nombre_completo, correo, telefono, rol, estado, foto_url } = body;
             const updateData = {};
             if (nombre_completo !== undefined)
                 updateData.nombre_completo = nombre_completo;
@@ -84,6 +84,8 @@ let UsuariosService = class UsuariosService {
                 updateData.rol = rol;
             if (estado !== undefined)
                 updateData.estado = estado;
+            if (foto_url !== undefined)
+                updateData.foto_url = foto_url;
             const { data, error } = await this.supabaseService.client
                 .from('perfiles').update(updateData).eq('id', id).select().single();
             if (error)

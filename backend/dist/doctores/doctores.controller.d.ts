@@ -14,6 +14,7 @@ export declare class DoctoresController {
             nombre_completo: any;
             correo: any;
             telefono: any;
+            estado: any;
         }[];
         especialidades: {
             nombre: any;

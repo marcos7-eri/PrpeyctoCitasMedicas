@@ -177,7 +177,6 @@ export default function HistorialPacienteScreen() {
       const { data: pac, error: errPac } = await supabase
         .from('pacientes').select('id').eq('perfil_id', user.id).maybeSingle();
 
-      console.log('[Historial] user.id:', user.id, '| pac:', pac, '| err:', errPac?.message);
       if (!pac) { setLoading(false); return; }
 
       // Paso 1: historiales
@@ -187,7 +186,6 @@ export default function HistorialPacienteScreen() {
         .eq('paciente_id', pac.id)
         .order('fecha_registro', { ascending: false });
 
-      console.log('[Historial] historiales:', hData?.length, '| err:', errH?.message);
       if (!hData || hData.length === 0) { setLoading(false); return; }
 
       // Paso 2: recetas separadas para evitar problemas de join con RLS
@@ -197,8 +195,6 @@ export default function HistorialPacienteScreen() {
         .select('id, historial_id, medicamento, dosis, frecuencia, duracion, instrucciones')
         .in('historial_id', ids);
 
-      console.log('[Historial] recetas:', rData?.length, '| err:', errR?.message);
-
       // Combinar
       const combinado = hData.map((h: any) => ({
         ...h,
@@ -206,8 +202,7 @@ export default function HistorialPacienteScreen() {
       }));
 
       setHistorial(combinado as any[]);
-    } catch (e) { console.error('[Historial] excepción:', e); }
-    finally { setLoading(false); }
+    } finally { setLoading(false); }
   }, [user]);
 
   useEffect(() => { cargar(); }, [cargar]);

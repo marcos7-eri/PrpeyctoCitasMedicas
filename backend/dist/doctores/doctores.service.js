@@ -27,7 +27,7 @@ let DoctoresService = class DoctoresService {
         try {
             let query = this.supabaseService.client
                 .from('doctores')
-                .select('id, perfil_id, especialidad_id, numero_licencia, anios_experiencia, costo_consulta, biografia, perfiles(nombre_completo, correo, telefono), especialidades(nombre)')
+                .select('id, perfil_id, especialidad_id, numero_licencia, anios_experiencia, costo_consulta, biografia, perfiles(nombre_completo, correo, telefono, estado), especialidades(nombre)')
                 .order('id', { ascending: false });
             if (perfilId)
                 query = query.eq('perfil_id', perfilId);
