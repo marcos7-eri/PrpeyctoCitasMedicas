@@ -12,10 +12,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsuariosService = void 0;
 const common_1 = require("@nestjs/common");
 const supabase_service_1 = require("../supabase/supabase.service");
+const auditoria_service_1 = require("../auditoria/auditoria.service");
 let UsuariosService = class UsuariosService {
     supabaseService;
-    constructor(supabaseService) {
+    auditoriaService;
+    constructor(supabaseService, auditoriaService) {
         this.supabaseService = supabaseService;
+        this.auditoriaService = auditoriaService;
+    }
+    audit(accion, tabla, registro_id, detalles) {
+        this.auditoriaService.create({ accion, tabla, registro_id, detalles }).catch(() => { });
     }
     async findAll() {
         try {
@@ -50,18 +56,12 @@ let UsuariosService = class UsuariosService {
             const perfilId = authData.user.id;
             const { data, error } = await this.supabaseService.client
                 .from('perfiles')
-                .upsert({
-                id: perfilId,
-                nombre_completo: nombre.trim(),
-                correo: correo.trim(),
-                rol,
-                telefono: telefono?.trim() || null,
-                estado: 'activo',
-            })
+                .upsert({ id: perfilId, nombre_completo: nombre.trim(), correo: correo.trim(), rol, telefono: telefono?.trim() || null, estado: 'activo' })
                 .select()
                 .single();
             if (error)
                 throw new common_1.BadRequestException(error.message);
+            this.audit('insert', 'perfiles', perfilId, { nombre: nombre.trim(), correo: correo.trim(), rol });
             return data;
         }
         catch (err) {
@@ -85,13 +85,10 @@ let UsuariosService = class UsuariosService {
             if (estado !== undefined)
                 updateData.estado = estado;
             const { data, error } = await this.supabaseService.client
-                .from('perfiles')
-                .update(updateData)
-                .eq('id', id)
-                .select()
-                .single();
+                .from('perfiles').update(updateData).eq('id', id).select().single();
             if (error)
                 throw new common_1.BadRequestException(error.message);
+            this.audit('update', 'perfiles', id, updateData);
             return data;
         }
         catch (err) {
@@ -105,6 +102,7 @@ let UsuariosService = class UsuariosService {
             const { error: authError } = await this.supabaseService.client.auth.admin.deleteUser(id);
             if (authError)
                 throw new common_1.BadRequestException(authError.message);
+            this.audit('delete', 'perfiles', id, { eliminado: true });
             return { success: true };
         }
         catch (err) {
@@ -117,6 +115,7 @@ let UsuariosService = class UsuariosService {
 exports.UsuariosService = UsuariosService;
 exports.UsuariosService = UsuariosService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [supabase_service_1.SupabaseService])
+    __metadata("design:paramtypes", [supabase_service_1.SupabaseService,
+        auditoria_service_1.AuditoriaService])
 ], UsuariosService);
 //# sourceMappingURL=usuarios.service.js.map

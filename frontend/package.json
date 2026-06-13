@@ -12,7 +12,8 @@
     "@supabase/supabase-js": "^2.103.3",
     "next": "^15.3.2",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

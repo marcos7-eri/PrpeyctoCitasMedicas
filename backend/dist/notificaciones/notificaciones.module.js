@@ -17,6 +17,7 @@ exports.NotificacionesModule = NotificacionesModule = __decorate([
     (0, common_1.Module)({
         controllers: [notificaciones_controller_1.NotificacionesController],
         providers: [notificaciones_service_1.NotificacionesService],
+        exports: [notificaciones_service_1.NotificacionesService],
     })
 ], NotificacionesModule);
 //# sourceMappingURL=notificaciones.module.js.map

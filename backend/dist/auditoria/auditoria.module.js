@@ -17,6 +17,7 @@ exports.AuditoriaModule = AuditoriaModule = __decorate([
     (0, common_1.Module)({
         controllers: [auditoria_controller_1.AuditoriaController],
         providers: [auditoria_service_1.AuditoriaService],
+        exports: [auditoria_service_1.AuditoriaService],
     })
 ], AuditoriaModule);
 //# sourceMappingURL=auditoria.module.js.map

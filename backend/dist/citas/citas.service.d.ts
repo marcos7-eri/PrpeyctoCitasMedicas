@@ -1,7 +1,12 @@
 import { SupabaseService } from '../supabase/supabase.service';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { AuditoriaService } from '../auditoria/auditoria.service';
 export declare class CitasService {
     private readonly supabaseService;
-    constructor(supabaseService: SupabaseService);
+    private readonly notificacionesService;
+    private readonly auditoriaService;
+    constructor(supabaseService: SupabaseService, notificacionesService: NotificacionesService, auditoriaService: AuditoriaService);
+    private audit;
     findAll(doctorId?: string, pacienteId?: string): Promise<{
         id: any;
         doctor_id: any;
@@ -32,6 +37,8 @@ export declare class CitasService {
     }[]>;
     create(body: any): Promise<any>;
     update(id: string, body: any): Promise<any>;
+    cancelar(id: string, motivo?: string): Promise<any>;
+    reagendar(id: string, nueva_fecha: string, nueva_hora_inicio: string, duracion_cita: number): Promise<any>;
     remove(id: string): Promise<{
         success: boolean;
     }>;

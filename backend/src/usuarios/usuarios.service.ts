@@ -1,9 +1,17 @@
 import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { AuditoriaService } from '../auditoria/auditoria.service';
 
 @Injectable()
 export class UsuariosService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly auditoriaService: AuditoriaService,
+  ) {}
+
+  private audit(accion: string, tabla: string, registro_id: string, detalles: any) {
+    this.auditoriaService.create({ accion, tabla, registro_id, detalles }).catch(() => {});
+  }
 
   async findAll() {
     try {
@@ -11,7 +19,6 @@ export class UsuariosService {
         .from('perfiles')
         .select('id, nombre_completo, correo, rol, estado, telefono, creado_en, foto_url')
         .order('creado_en', { ascending: false });
-
       if (error) throw new BadRequestException(error.message);
       return data;
     } catch (err: any) {
@@ -33,25 +40,17 @@ export class UsuariosService {
         email_confirm: true,
         user_metadata: { nombre_completo: nombre.trim(), rol },
       });
-
       if (authError) throw new BadRequestException(authError.message);
 
       const perfilId = authData.user.id;
-
       const { data, error } = await this.supabaseService.client
         .from('perfiles')
-        .upsert({
-          id: perfilId,
-          nombre_completo: nombre.trim(),
-          correo: correo.trim(),
-          rol,
-          telefono: telefono?.trim() || null,
-          estado: 'activo',
-        })
+        .upsert({ id: perfilId, nombre_completo: nombre.trim(), correo: correo.trim(), rol, telefono: telefono?.trim() || null, estado: 'activo' })
         .select()
         .single();
-
       if (error) throw new BadRequestException(error.message);
+
+      this.audit('insert', 'perfiles', perfilId, { nombre: nombre.trim(), correo: correo.trim(), rol });
       return data;
     } catch (err: any) {
       if (err instanceof BadRequestException) throw err;
@@ -70,13 +69,10 @@ export class UsuariosService {
       if (estado !== undefined) updateData.estado = estado;
 
       const { data, error } = await this.supabaseService.client
-        .from('perfiles')
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
-
+        .from('perfiles').update(updateData).eq('id', id).select().single();
       if (error) throw new BadRequestException(error.message);
+
+      this.audit('update', 'perfiles', id, updateData);
       return data;
     } catch (err: any) {
       if (err instanceof BadRequestException) throw err;
@@ -88,6 +84,8 @@ export class UsuariosService {
     try {
       const { error: authError } = await this.supabaseService.client.auth.admin.deleteUser(id);
       if (authError) throw new BadRequestException(authError.message);
+
+      this.audit('delete', 'perfiles', id, { eliminado: true });
       return { success: true };
     } catch (err: any) {
       if (err instanceof BadRequestException) throw err;

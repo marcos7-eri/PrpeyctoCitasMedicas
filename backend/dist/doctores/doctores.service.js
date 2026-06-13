@@ -12,10 +12,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DoctoresService = void 0;
 const common_1 = require("@nestjs/common");
 const supabase_service_1 = require("../supabase/supabase.service");
+const auditoria_service_1 = require("../auditoria/auditoria.service");
 let DoctoresService = class DoctoresService {
     supabaseService;
-    constructor(supabaseService) {
+    auditoriaService;
+    constructor(supabaseService, auditoriaService) {
         this.supabaseService = supabaseService;
+        this.auditoriaService = auditoriaService;
+    }
+    audit(accion, tabla, registro_id, detalles) {
+        this.auditoriaService.create({ accion, tabla, registro_id, detalles }).catch(() => { });
     }
     async findAll(perfilId) {
         try {
@@ -23,9 +29,8 @@ let DoctoresService = class DoctoresService {
                 .from('doctores')
                 .select('id, perfil_id, especialidad_id, numero_licencia, anios_experiencia, costo_consulta, biografia, perfiles(nombre_completo, correo, telefono), especialidades(nombre)')
                 .order('id', { ascending: false });
-            if (perfilId) {
+            if (perfilId)
                 query = query.eq('perfil_id', perfilId);
-            }
             const { data, error } = await query;
             if (error)
                 throw new common_1.BadRequestException(error.message);
@@ -44,38 +49,25 @@ let DoctoresService = class DoctoresService {
                 throw new common_1.BadRequestException('nombre, correo, password y especialidad_id son requeridos');
             }
             const { data: authData, error: authError } = await this.supabaseService.client.auth.admin.createUser({
-                email: correo.trim(),
-                password,
-                email_confirm: true,
+                email: correo.trim(), password, email_confirm: true,
                 user_metadata: { nombre_completo: nombre.trim(), rol: 'doctor' },
             });
             if (authError)
                 throw new common_1.BadRequestException(authError.message);
             const perfilId = authData.user.id;
             const { error: perfilError } = await this.supabaseService.client.from('perfiles').upsert({
-                id: perfilId,
-                nombre_completo: nombre.trim(),
-                correo: correo.trim(),
-                rol: 'doctor',
-                telefono: telefono?.trim() || null,
-                estado: 'activo',
+                id: perfilId, nombre_completo: nombre.trim(), correo: correo.trim(),
+                rol: 'doctor', telefono: telefono?.trim() || null, estado: 'activo',
             });
             if (perfilError)
                 throw new common_1.BadRequestException(perfilError.message);
             const { data, error } = await this.supabaseService.client
                 .from('doctores')
-                .insert({
-                perfil_id: perfilId,
-                especialidad_id,
-                numero_licencia: numero_licencia || null,
-                anios_experiencia: anios_experiencia || null,
-                costo_consulta: costo_consulta || null,
-                biografia: biografia?.trim() || null,
-            })
-                .select()
-                .single();
+                .insert({ perfil_id: perfilId, especialidad_id, numero_licencia: numero_licencia || null, anios_experiencia: anios_experiencia || null, costo_consulta: costo_consulta || null, biografia: biografia?.trim() || null })
+                .select().single();
             if (error)
                 throw new common_1.BadRequestException(error.message);
+            this.audit('insert', 'doctores', String(data.id), { nombre: nombre.trim(), correo: correo.trim(), especialidad_id });
             return data;
         }
         catch (err) {
@@ -99,13 +91,10 @@ let DoctoresService = class DoctoresService {
             if (biografia !== undefined)
                 updateData.biografia = biografia;
             const { data, error } = await this.supabaseService.client
-                .from('doctores')
-                .update(updateData)
-                .eq('id', id)
-                .select()
-                .single();
+                .from('doctores').update(updateData).eq('id', id).select().single();
             if (error)
                 throw new common_1.BadRequestException(error.message);
+            this.audit('update', 'doctores', id, updateData);
             return data;
         }
         catch (err) {
@@ -119,6 +108,7 @@ let DoctoresService = class DoctoresService {
             const { error } = await this.supabaseService.client.from('doctores').delete().eq('id', id);
             if (error)
                 throw new common_1.BadRequestException(error.message);
+            this.audit('delete', 'doctores', id, { eliminado: true });
             return { success: true };
         }
         catch (err) {
@@ -131,6 +121,7 @@ let DoctoresService = class DoctoresService {
 exports.DoctoresService = DoctoresService;
 exports.DoctoresService = DoctoresService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [supabase_service_1.SupabaseService])
+    __metadata("design:paramtypes", [supabase_service_1.SupabaseService,
+        auditoria_service_1.AuditoriaService])
 ], DoctoresService);
 //# sourceMappingURL=doctores.service.js.map

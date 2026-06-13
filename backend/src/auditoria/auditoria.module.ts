@@ -5,5 +5,6 @@ import { AuditoriaService } from './auditoria.service';
 @Module({
   controllers: [AuditoriaController],
   providers: [AuditoriaService],
+  exports: [AuditoriaService],
 })
 export class AuditoriaModule {}

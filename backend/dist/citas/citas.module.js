@@ -10,11 +10,14 @@ exports.CitasModule = void 0;
 const common_1 = require("@nestjs/common");
 const citas_controller_1 = require("./citas.controller");
 const citas_service_1 = require("./citas.service");
+const notificaciones_module_1 = require("../notificaciones/notificaciones.module");
+const auditoria_module_1 = require("../auditoria/auditoria.module");
 let CitasModule = class CitasModule {
 };
 exports.CitasModule = CitasModule;
 exports.CitasModule = CitasModule = __decorate([
     (0, common_1.Module)({
+        imports: [notificaciones_module_1.NotificacionesModule, auditoria_module_1.AuditoriaModule],
         controllers: [citas_controller_1.CitasController],
         providers: [citas_service_1.CitasService],
     })

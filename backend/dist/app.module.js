@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
+const schedule_1 = require("@nestjs/schedule");
 const app_controller_1 = require("./app.controller");
 const supabase_module_1 = require("./supabase/supabase.module");
 const auth_module_1 = require("./auth/auth.module");
@@ -20,6 +21,10 @@ const citas_module_1 = require("./citas/citas.module");
 const horarios_module_1 = require("./horarios/horarios.module");
 const notificaciones_module_1 = require("./notificaciones/notificaciones.module");
 const auditoria_module_1 = require("./auditoria/auditoria.module");
+const ia_module_1 = require("./ia/ia.module");
+const historial_medico_module_1 = require("./historial-medico/historial-medico.module");
+const recordatorios_module_1 = require("./recordatorios/recordatorios.module");
+const estadisticas_module_1 = require("./estadisticas/estadisticas.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -27,6 +32,7 @@ exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
             config_1.ConfigModule.forRoot({ isGlobal: true }),
+            schedule_1.ScheduleModule.forRoot(),
             supabase_module_1.SupabaseModule,
             auth_module_1.AuthModule,
             usuarios_module_1.UsuariosModule,
@@ -37,6 +43,10 @@ exports.AppModule = AppModule = __decorate([
             horarios_module_1.HorariosModule,
             notificaciones_module_1.NotificacionesModule,
             auditoria_module_1.AuditoriaModule,
+            ia_module_1.IaModule,
+            historial_medico_module_1.HistorialMedicoModule,
+            recordatorios_module_1.RecordatoriosModule,
+            estadisticas_module_1.EstadisticasModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [],

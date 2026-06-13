@@ -1,6 +1,7 @@
 import { SupabaseService } from '../supabase/supabase.service';
 export declare class NotificacionesService {
     private readonly supabaseService;
+    private readonly logger;
     constructor(supabaseService: SupabaseService);
     findAll(usuarioId?: string): Promise<{
         id: any;
@@ -12,6 +13,7 @@ export declare class NotificacionesService {
         fecha_envio: any;
     }[]>;
     create(body: any): Promise<any>;
+    private enviarPush;
     update(id: string, body: any): Promise<any>;
     remove(id: string): Promise<{
         success: boolean;

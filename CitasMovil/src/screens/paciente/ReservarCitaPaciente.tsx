@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity,
-  TextInput, Alert, ActivityIndicator, KeyboardAvoidingView,
+  TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Modal,
   Platform, Animated, Easing, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,6 +48,7 @@ export default function ReservarCitaPaciente() {
   const [horaInicio,     setHoraInicio]     = useState('');
   const [horarioActivo,  setHorarioActivo]  = useState<Horario | null>(null);
   const [motivo,         setMotivo]         = useState('');
+  const [perfilModal,    setPerfilModal]    = useState<Doctor | null>(null);
 
   // Animations
   const progress  = useRef(new Animated.Value(0)).current;
@@ -119,7 +120,7 @@ export default function ReservarCitaPaciente() {
     (async () => {
       const { data: listaDr, error: errDr } = await supabase
         .from('doctores')
-        .select('id, perfil_id, especialidad_id, anios_experiencia, costo_consulta, biografia')
+        .select('id, perfil_id, especialidad_id, numero_licencia, anios_experiencia, costo_consulta, biografia')
         .eq('especialidad_id', especialidadId);
       if (errDr) { Alert.alert('Error', 'No se cargaron los doctores: ' + errDr.message); setLoadingData(false); return; }
       if (!listaDr?.length) { setDoctores([]); setLoadingData(false); return; }
@@ -320,29 +321,34 @@ export default function ReservarCitaPaciente() {
               const nombre = (d.perfiles as any)?.nombre_completo ?? 'Doctor';
               const active = doctor?.id === d.id;
               return (
-                <TouchableOpacity
-                  key={d.id}
-                  style={[s.drCard, active && s.drCardActive]}
-                  onPress={() => { Haptics.selectionAsync(); setDoctor(d); }}
-                  activeOpacity={0.8}
-                >
-                  <View style={[s.drAvatar, active && { borderColor: C.primary, backgroundColor: C.primary + '28' }]}>
-                    <Text style={[s.drAvatarTxt, active && { color: C.primary }]}>{nombre.charAt(0).toUpperCase()}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.drName, active && { color: C.white }]}>{nombre}</Text>
-                    <Text style={s.drSub}>
-                      {d.anios_experiencia ? `${d.anios_experiencia} años exp.` : ''}
-                      {d.costo_consulta    ? ` · L. ${d.costo_consulta}` : ''}
-                    </Text>
-                    {!!d.biografia && <Text style={s.drBio} numberOfLines={2}>{d.biografia}</Text>}
-                  </View>
-                  <Ionicons
-                    name={active ? 'checkmark-circle' : 'chevron-forward'}
-                    size={20}
-                    color={active ? C.primary : C.border}
-                  />
-                </TouchableOpacity>
+                <View key={d.id} style={s.drCardWrap}>
+                  <TouchableOpacity
+                    style={[s.drCard, active && s.drCardActive]}
+                    onPress={() => { Haptics.selectionAsync(); setDoctor(d); }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[s.drAvatar, active && { borderColor: C.primary, backgroundColor: C.primary + '28' }]}>
+                      <Text style={[s.drAvatarTxt, active && { color: C.primary }]}>{nombre.charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.drName, active && { color: C.white }]}>{nombre}</Text>
+                      <Text style={s.drSub}>
+                        {d.anios_experiencia ? `${d.anios_experiencia} años exp.` : ''}
+                        {d.costo_consulta    ? ` · L. ${d.costo_consulta}` : ''}
+                      </Text>
+                      {!!d.biografia && <Text style={s.drBio} numberOfLines={2}>{d.biografia}</Text>}
+                    </View>
+                    <Ionicons
+                      name={active ? 'checkmark-circle' : 'chevron-forward'}
+                      size={20}
+                      color={active ? C.primary : C.border}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.perfilLink} onPress={() => { Haptics.selectionAsync(); setPerfilModal(d); }}>
+                    <Ionicons name="information-circle-outline" size={13} color={C.primary} />
+                    <Text style={s.perfilLinkTxt}>Ver perfil completo</Text>
+                  </TouchableOpacity>
+                </View>
               );
             })
           )}
@@ -490,6 +496,96 @@ export default function ReservarCitaPaciente() {
         </Animated.View>
       </ScrollView>
 
+      {/* ── DOCTOR PERFIL MODAL ── */}
+      <Modal
+        visible={!!perfilModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPerfilModal(null)}
+      >
+        <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setPerfilModal(null)}>
+          <TouchableOpacity style={s.modalCard} activeOpacity={1} onPress={() => {}}>
+
+            {/* Cerrar */}
+            <TouchableOpacity style={s.modalClose} onPress={() => setPerfilModal(null)}>
+              <Ionicons name="close" size={20} color={C.muted} />
+            </TouchableOpacity>
+
+            {/* Avatar */}
+            <View style={s.modalAvatar}>
+              <Text style={s.modalAvatarTxt}>
+                {((perfilModal?.perfiles as any)?.nombre_completo ?? 'D').charAt(0).toUpperCase()}
+              </Text>
+            </View>
+
+            {/* Nombre + especialidad */}
+            <Text style={s.modalNombre}>{(perfilModal?.perfiles as any)?.nombre_completo ?? 'Doctor'}</Text>
+            {!!(perfilModal?.especialidades as any)?.nombre && (
+              <Text style={s.modalEsp}>{(perfilModal?.especialidades as any)?.nombre}</Text>
+            )}
+
+            <View style={s.modalDivider} />
+
+            {/* Stats */}
+            {(!!perfilModal?.anios_experiencia || !!perfilModal?.costo_consulta) && (
+              <View style={s.modalStats}>
+                {!!perfilModal?.anios_experiencia && (
+                  <View style={s.modalStat}>
+                    <Ionicons name="star-outline" size={18} color={C.primary} />
+                    <Text style={s.modalStatVal}>{perfilModal.anios_experiencia}</Text>
+                    <Text style={s.modalStatLbl}>años exp.</Text>
+                  </View>
+                )}
+                {!!perfilModal?.costo_consulta && (
+                  <View style={[s.modalStat,
+                    perfilModal.anios_experiencia ? { borderLeftWidth: 1, borderLeftColor: C.border, paddingLeft: 16 } : {}
+                  ]}>
+                    <Ionicons name="cash-outline" size={18} color={C.success} />
+                    <Text style={[s.modalStatVal, { color: C.success }]}>L. {perfilModal.costo_consulta}</Text>
+                    <Text style={s.modalStatLbl}>consulta</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Biografía */}
+            {!!perfilModal?.biografia && (
+              <View style={s.modalBioBox}>
+                <Text style={s.modalBioLbl}>Acerca del doctor</Text>
+                <Text style={s.modalBioTxt}>{perfilModal.biografia}</Text>
+              </View>
+            )}
+
+            {/* Licencia */}
+            {!!(perfilModal as any)?.numero_licencia && (
+              <View style={s.modalLicBox}>
+                <Ionicons name="shield-checkmark-outline" size={14} color={C.primary} />
+                <Text style={s.modalLicTxt}>Lic. {(perfilModal as any).numero_licencia}</Text>
+              </View>
+            )}
+
+            {/* Acciones */}
+            <View style={s.modalBtns}>
+              <TouchableOpacity style={s.modalBtnSecondary} onPress={() => setPerfilModal(null)}>
+                <Text style={s.modalBtnSecondaryTxt}>Cerrar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.modalBtnPrimary}
+                onPress={() => {
+                  if (perfilModal) setDoctor(perfilModal);
+                  setPerfilModal(null);
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                }}
+              >
+                <Ionicons name="checkmark-circle-outline" size={16} color="#FFF" />
+                <Text style={s.modalBtnPrimaryTxt}>Seleccionar doctor</Text>
+              </TouchableOpacity>
+            </View>
+
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
       {/* ── NAV BAR ── */}
       <View style={s.navBar}>
         {paso > 0 ? (
@@ -582,7 +678,7 @@ const s = StyleSheet.create({
   drCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     backgroundColor: C.card, borderRadius: 16, padding: 16,
-    marginBottom: 10, borderWidth: 1.5, borderColor: C.border,
+    borderWidth: 1.5, borderColor: C.border,
   },
   drCardActive: { borderColor: C.primary, backgroundColor: C.primary + '0B' },
   drAvatar: {
@@ -704,4 +800,73 @@ const s = StyleSheet.create({
     shadowOpacity: 0.35, shadowRadius: 10, elevation: 8,
   },
   nextBtnTxt: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+
+  /* Doctor card wrapper + "Ver perfil" link */
+  drCardWrap: { marginBottom: 10 },
+  perfilLink: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 8, paddingVertical: 6, alignSelf: 'flex-end',
+    marginTop: -4,
+  },
+  perfilLinkTxt: { color: C.primary, fontSize: 12, fontWeight: '600' },
+
+  /* Doctor Profile Modal */
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'center', alignItems: 'center', padding: 20,
+  },
+  modalCard: {
+    backgroundColor: C.card, borderRadius: 24, padding: 24,
+    width: '100%', borderWidth: 1, borderColor: C.border,
+  },
+  modalClose: {
+    position: 'absolute', top: 16, right: 16,
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: C.surface, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: C.border, zIndex: 1,
+  },
+  modalAvatar: {
+    width: 76, height: 76, borderRadius: 38,
+    backgroundColor: C.primary + '20', justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2.5, borderColor: C.primary + '40',
+    alignSelf: 'center', marginBottom: 12, marginTop: 8,
+  },
+  modalAvatarTxt: { color: C.primary, fontSize: 32, fontWeight: '800' },
+  modalNombre:    { color: C.white, fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
+  modalEsp:       { color: C.primary, fontSize: 13, fontWeight: '600', textAlign: 'center', marginBottom: 16 },
+  modalDivider:   { height: 1, backgroundColor: C.border, marginBottom: 16 },
+
+  modalStats: { flexDirection: 'row', justifyContent: 'center', marginBottom: 16, gap: 0 },
+  modalStat:  { alignItems: 'center', gap: 4, paddingHorizontal: 16 },
+  modalStatVal: { color: C.white, fontSize: 15, fontWeight: '700' },
+  modalStatLbl: { color: C.light, fontSize: 11 },
+
+  modalBioBox: {
+    backgroundColor: C.surface, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: C.border, marginBottom: 12,
+  },
+  modalBioLbl: {
+    color: C.light, fontSize: 11, fontWeight: '700',
+    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6,
+  },
+  modalBioTxt: { color: C.muted, fontSize: 13, lineHeight: 20 },
+
+  modalLicBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginBottom: 16, paddingHorizontal: 2,
+  },
+  modalLicTxt: { color: C.light, fontSize: 12 },
+
+  modalBtns: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  modalBtnSecondary: {
+    flex: 1, paddingVertical: 13, borderRadius: 14, alignItems: 'center',
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+  },
+  modalBtnSecondaryTxt: { color: C.muted, fontSize: 14, fontWeight: '600' },
+  modalBtnPrimary: {
+    flex: 2, paddingVertical: 13, borderRadius: 14,
+    backgroundColor: C.accent, flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  modalBtnPrimaryTxt: { color: '#FFF', fontSize: 14, fontWeight: '700' },
 });

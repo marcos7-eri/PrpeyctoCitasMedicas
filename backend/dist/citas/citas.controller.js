@@ -29,6 +29,12 @@ let CitasController = class CitasController {
     async update(id, body) {
         return this.citasService.update(id, body);
     }
+    async cancelar(id, body) {
+        return this.citasService.cancelar(id, body?.motivo_cancelacion);
+    }
+    async reagendar(id, body) {
+        return this.citasService.reagendar(id, body.nueva_fecha, body.nueva_hora_inicio, body.duracion_cita ?? 30);
+    }
     async remove(id) {
         return this.citasService.remove(id);
     }
@@ -57,6 +63,22 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], CitasController.prototype, "update", null);
+__decorate([
+    (0, common_1.Patch)(':id/cancelar'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], CitasController.prototype, "cancelar", null);
+__decorate([
+    (0, common_1.Patch)(':id/reagendar'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], CitasController.prototype, "reagendar", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),

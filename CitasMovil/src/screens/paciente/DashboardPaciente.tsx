@@ -80,24 +80,35 @@ export default function DashboardPaciente() {
   const cargar = useCallback(async () => {
     if (!user) return;
     const hoy = new Date().toISOString().split('T')[0];
+
+    // Resolver el pacientes.id real (distinto del auth user.id)
+    const { data: pac } = await supabase
+      .from('pacientes').select('id').eq('perfil_id', user.id).maybeSingle();
+    const pacienteId = pac?.id ?? null;
+
     const [perfilRes, citaRes, notifsRes, totalRes] = await Promise.all([
       supabase.from('perfiles').select('*').eq('id', user.id).single(),
-      supabase.from('citas')
-        .select('id,fecha,hora_inicio,estado,motivo,doctores(id,perfiles(nombre_completo),especialidades(nombre))')
-        .eq('paciente_id', user.id).gte('fecha', hoy)
-        .in('estado', ['pendiente', 'confirmada'])
-        .order('fecha', { ascending: true }).limit(1).maybeSingle(),
+      pacienteId
+        ? supabase.from('citas')
+            .select('id,fecha,hora_inicio,estado,motivo,doctores(id,perfiles(nombre_completo),especialidades(nombre))')
+            .eq('paciente_id', pacienteId).gte('fecha', hoy)
+            .in('estado', ['pendiente', 'confirmada'])
+            .order('fecha', { ascending: true }).limit(1).maybeSingle()
+        : Promise.resolve({ data: null }),
       supabase.from('notificaciones').select('*').eq('usuario_id', user.id)
         .order('fecha_envio', { ascending: false }).limit(4),
-      supabase.from('citas').select('id', { count: 'exact', head: true }).eq('paciente_id', user.id),
+      pacienteId
+        ? supabase.from('citas').select('id', { count: 'exact', head: true }).eq('paciente_id', pacienteId)
+        : Promise.resolve({ count: 0 }),
     ]);
+
     if (perfilRes.data)  setPerfil(perfilRes.data);
     setCitaProxima((citaRes.data as any) ?? null);
     if (notifsRes.data) {
       setNotifs(notifsRes.data);
       setNoLeidas(notifsRes.data.filter((n: Notificacion) => !n.leido).length);
     }
-    setTotalCitas(totalRes.count ?? 0);
+    setTotalCitas((totalRes as any).count ?? 0);
     setLoading(false);
   }, [user]);
 

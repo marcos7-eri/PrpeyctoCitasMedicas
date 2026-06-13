@@ -10,6 +10,9 @@ import ReservarCitaPaciente from '../screens/paciente/ReservarCitaPaciente';
 import MisCitasPaciente from '../screens/paciente/MisCitasPaciente';
 import NotificacionesPaciente from '../screens/paciente/NotificacionesPaciente';
 import PerfilPaciente from '../screens/paciente/PerfilPaciente';
+import ChatIAScreen from '../screens/paciente/ChatIAScreen';
+import HistorialPacienteScreen from '../screens/paciente/HistorialPacienteScreen';
+import RecetasPacienteScreen from '../screens/paciente/RecetasPacienteScreen';
 import { COLORS } from '../styles/theme';
 
 const Tab = createBottomTabNavigator();
@@ -86,7 +89,10 @@ export default function PacienteNavigator() {
           const icons: Record<string, [string, string]> = {
             Inicio: ['home', 'home-outline'],
             Reservar: ['calendar', 'calendar-outline'],
+            ChatIA: ['medkit', 'medkit-outline'],
             MisCitas: ['list', 'list-outline'],
+            Historial: ['document-text', 'document-text-outline'],
+            Recetas: ['receipt', 'receipt-outline'],
             Notificaciones: ['notifications', 'notifications-outline'],
             Perfil: ['person', 'person-outline'],
           };
@@ -116,9 +122,24 @@ export default function PacienteNavigator() {
         options={{ title: 'Reservar', headerTitle: 'Reservar cita' }}
       />
       <Tab.Screen
+        name="ChatIA"
+        component={ChatIAScreen}
+        options={{ title: 'Asistente', headerTitle: 'Asistente Médico IA' }}
+      />
+      <Tab.Screen
         name="MisCitas"
         component={MisCitasPaciente}
         options={{ title: 'Mis citas', headerTitle: 'Mis citas' }}
+      />
+      <Tab.Screen
+        name="Historial"
+        component={HistorialPacienteScreen}
+        options={{ title: 'Historial', headerTitle: 'Mi historial médico' }}
+      />
+      <Tab.Screen
+        name="Recetas"
+        component={RecetasPacienteScreen}
+        options={{ title: 'Recetas', headerTitle: 'Mis recetas médicas' }}
       />
       <Tab.Screen
         name="Notificaciones"

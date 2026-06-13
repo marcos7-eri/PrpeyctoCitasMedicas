@@ -32,6 +32,8 @@ export declare class CitasController {
     }[]>;
     create(body: any): Promise<any>;
     update(id: string, body: any): Promise<any>;
+    cancelar(id: string, body: any): Promise<any>;
+    reagendar(id: string, body: any): Promise<any>;
     remove(id: string): Promise<{
         success: boolean;
     }>;

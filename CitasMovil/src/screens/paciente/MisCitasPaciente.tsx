@@ -2,15 +2,17 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   Alert, RefreshControl, ActivityIndicator,
-  Animated, Dimensions,
+  Animated, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
+import { API_URL } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import CitaCard from '../../components/paciente/CitaCard';
 import { Cita, EstadoCita } from '../../types';
+import { getProximas14Dias, generarSlots, formatFecha } from '../../utils/fechas';
 
 const { width } = Dimensions.get('window');
 
@@ -36,7 +38,245 @@ const STATUS_CHIPS: { label: string; valor: EstadoCita; color: string }[] = [
   { label: 'Completada', valor: 'completada', color: C.accent  },
 ];
 
-function AnimatedItem({ cita, onCancelar, index }: { cita: Cita; onCancelar: (c: Cita) => void; index: number }) {
+// ─────────────────────────────────────────────────────────────────
+// Modal: Cancelar cita (con motivo opcional)
+// ─────────────────────────────────────────────────────────────────
+function CancelarModal({
+  cita, visible, onClose, onConfirm, loading,
+}: {
+  cita: Cita | null;
+  visible: boolean;
+  onClose: () => void;
+  onConfirm: (motivo: string) => void;
+  loading: boolean;
+}) {
+  const [motivo, setMotivo] = useState('');
+  useEffect(() => { if (!visible) setMotivo(''); }, [visible]);
+
+  if (!cita) return null;
+  const drNombre = (cita.doctores as any)?.perfiles?.nombre_completo ?? 'tu doctor';
+  const hora = cita.hora_inicio?.substring(0, 5) ?? '';
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+        <View style={s.modalCard}>
+          {/* Icono + título */}
+          <View style={s.modalIconWrap}>
+            <Ionicons name="close-circle" size={32} color={C.error} />
+          </View>
+          <Text style={s.modalTitle}>Cancelar cita</Text>
+          <Text style={s.modalSub}>
+            {formatFecha(cita.fecha)} a las {hora} con {drNombre}
+          </Text>
+
+          <View style={s.modalDivider} />
+
+          {/* Motivo opcional */}
+          <Text style={s.modalLabel}>Motivo de cancelación <Text style={{ color: C.light }}>(opcional)</Text></Text>
+          <TextInput
+            style={s.modalInput}
+            placeholder="¿Por qué cancelas la cita?"
+            placeholderTextColor={C.light}
+            value={motivo}
+            onChangeText={setMotivo}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+          />
+
+          {/* Botones */}
+          <View style={s.modalBtns}>
+            <TouchableOpacity style={s.modalBtnSecondary} onPress={onClose} disabled={loading}>
+              <Text style={s.modalBtnSecondaryTxt}>Volver</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.modalBtnDanger, loading && { opacity: 0.6 }]}
+              onPress={() => onConfirm(motivo.trim())}
+              disabled={loading}
+            >
+              {loading
+                ? <ActivityIndicator size="small" color="#FFF" />
+                : <Ionicons name="close-circle-outline" size={16} color="#FFF" />
+              }
+              <Text style={s.modalBtnDangerTxt}>{loading ? 'Cancelando...' : 'Sí, cancelar'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Modal: Reagendar cita (fecha + horario)
+// ─────────────────────────────────────────────────────────────────
+function ReagendarModal({
+  cita, visible, onClose, onConfirm, loading,
+}: {
+  cita: Cita | null;
+  visible: boolean;
+  onClose: () => void;
+  onConfirm: (nueva_fecha: string, nueva_hora: string, duracion: number) => void;
+  loading: boolean;
+}) {
+  const dias = getProximas14Dias();
+  const [fechaObj, setFechaObj]     = useState<{ fecha: string; label: string; dayOfWeek: number } | null>(null);
+  const [slots, setSlots]           = useState<string[]>([]);
+  const [horaSelec, setHoraSelec]   = useState('');
+  const [duracion, setDuracion]     = useState(30);
+  const [loadSlots, setLoadSlots]   = useState(false);
+
+  // Limpiar al cerrar
+  useEffect(() => {
+    if (!visible) { setFechaObj(null); setSlots([]); setHoraSelec(''); }
+  }, [visible]);
+
+  // Cargar slots cuando se elige fecha
+  useEffect(() => {
+    if (!cita || !fechaObj) return;
+    setLoadSlots(true); setSlots([]); setHoraSelec('');
+    (async () => {
+      const { data: horarios } = await supabase
+        .from('horarios').select('*')
+        .eq('doctor_id', cita.doctor_id)
+        .eq('dia_semana', fechaObj.dayOfWeek)
+        .eq('activo', true);
+
+      if (!horarios?.length) { setSlots([]); setLoadSlots(false); return; }
+      const h = horarios[0] as any;
+      setDuracion(h.duracion_cita ?? 30);
+      const all = generarSlots(h.hora_inicio, h.hora_fin, h.duracion_cita);
+
+      const { data: ocupadas } = await supabase
+        .from('citas').select('hora_inicio')
+        .eq('doctor_id', cita.doctor_id)
+        .eq('fecha', fechaObj.fecha)
+        .in('estado', ['pendiente', 'confirmada'])
+        .neq('id', cita.id);
+
+      const busy = new Set((ocupadas ?? []).map((c: any) => c.hora_inicio.substring(0, 5)));
+      setSlots(all.filter(sl => !busy.has(sl)));
+      setLoadSlots(false);
+    })();
+  }, [cita, fechaObj]);
+
+  if (!cita) return null;
+  const drNombre = (cita.doctores as any)?.perfiles?.nombre_completo ?? 'tu doctor';
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={onClose} />
+      <View style={s.reagendarCard}>
+        {/* Encabezado */}
+        <View style={s.reagendarHeader}>
+          <View>
+            <Text style={s.modalTitle}>Reagendar cita</Text>
+            <Text style={s.modalSub}>{drNombre}</Text>
+          </View>
+          <TouchableOpacity style={s.closeBtn} onPress={onClose}>
+            <Ionicons name="close" size={20} color={C.muted} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={s.modalDivider} />
+
+        {/* Selección de fecha */}
+        <Text style={s.sectionLabel}>Elige la nueva fecha</Text>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={dias}
+          keyExtractor={d => d.fecha}
+          contentContainerStyle={{ gap: 8, paddingVertical: 4, paddingHorizontal: 2 }}
+          renderItem={({ item: d }) => {
+            const active = fechaObj?.fecha === d.fecha;
+            const dateObj = new Date(d.fecha + 'T00:00:00');
+            const dayNum  = d.fecha.substring(8);
+            const month   = dateObj.toLocaleString('es-ES', { month: 'short' });
+            return (
+              <TouchableOpacity
+                style={[s.dateCard, active && s.dateCardActive]}
+                onPress={() => { Haptics.selectionAsync(); setFechaObj(d); }}
+                activeOpacity={0.8}
+              >
+                <Text style={[s.dateDow, active && { color: C.primary }]}>{d.label.substring(0, 3)}</Text>
+                <Text style={[s.dateDay, active && { color: C.primary }]}>{dayNum}</Text>
+                <Text style={[s.dateMon, active && { color: C.primary + 'AA' }]}>{month}</Text>
+                {active && <View style={s.activeDot} />}
+              </TouchableOpacity>
+            );
+          }}
+        />
+
+        {/* Slots */}
+        {fechaObj && (
+          <>
+            <Text style={[s.sectionLabel, { marginTop: 14 }]}>Horarios disponibles</Text>
+            {loadSlots ? (
+              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <ActivityIndicator color={C.primary} />
+              </View>
+            ) : slots.length === 0 ? (
+              <View style={s.noSlotsBox}>
+                <Ionicons name="time-outline" size={22} color={C.light} />
+                <Text style={s.noSlotsTxt}>Sin horarios disponibles este día</Text>
+              </View>
+            ) : (
+              <View style={s.slotsGrid}>
+                {slots.map(sl => {
+                  const active = horaSelec === sl;
+                  return (
+                    <TouchableOpacity
+                      key={sl}
+                      style={[s.slotCard, active && s.slotCardActive]}
+                      onPress={() => { Haptics.selectionAsync(); setHoraSelec(sl); }}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="time-outline" size={13} color={active ? '#FFF' : C.light} />
+                      <Text style={[s.slotTxt, active && { color: '#FFF', fontWeight: '700' }]}>{sl}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </>
+        )}
+
+        {/* Botón confirmar */}
+        <View style={s.modalBtns}>
+          <TouchableOpacity style={s.modalBtnSecondary} onPress={onClose} disabled={loading}>
+            <Text style={s.modalBtnSecondaryTxt}>Cancelar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.modalBtnPrimary, (!fechaObj || !horaSelec || loading) && { opacity: 0.4 }]}
+            onPress={() => { if (fechaObj && horaSelec) onConfirm(fechaObj.fecha, horaSelec, duracion); }}
+            disabled={!fechaObj || !horaSelec || loading}
+          >
+            {loading
+              ? <ActivityIndicator size="small" color="#FFF" />
+              : <Ionicons name="checkmark-circle-outline" size={16} color="#FFF" />
+            }
+            <Text style={s.modalBtnPrimaryTxt}>{loading ? 'Guardando...' : 'Confirmar'}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// AnimatedItem
+// ─────────────────────────────────────────────────────────────────
+function AnimatedItem({
+  cita, onCancelar, onReagendar, index,
+}: {
+  cita: Cita;
+  onCancelar: (c: Cita) => void;
+  onReagendar: (c: Cita) => void;
+  index: number;
+}) {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.spring(anim, {
@@ -52,11 +292,14 @@ function AnimatedItem({ cita, onCancelar, index }: { cita: Cita; onCancelar: (c:
         { scale:      anim.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1] }) },
       ],
     }}>
-      <CitaCard cita={cita} onCancelar={onCancelar} />
+      <CitaCard cita={cita} onCancelar={onCancelar} onReagendar={onReagendar} />
     </Animated.View>
   );
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Screen principal
+// ─────────────────────────────────────────────────────────────────
 export default function MisCitasPaciente() {
   const { user }   = useAuth();
   const navigation = useNavigation<any>();
@@ -68,11 +311,15 @@ export default function MisCitasPaciente() {
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Sliding pill indicator
-  const SEG_W     = (width - 40 - 6) / 3;
-  const segSlide  = useRef(new Animated.Value(0)).current;
-  const headerOp  = useRef(new Animated.Value(0)).current;
-  const headerY   = useRef(new Animated.Value(-20)).current;
+  // Modales
+  const [citaCancelando,  setCitaCancelando]  = useState<Cita | null>(null);
+  const [citaReagendando, setCitaReagendando] = useState<Cita | null>(null);
+  const [accionLoading,   setAccionLoading]   = useState(false);
+
+  const SEG_W    = (width - 40 - 6) / 3;
+  const segSlide = useRef(new Animated.Value(0)).current;
+  const headerOp = useRef(new Animated.Value(0)).current;
+  const headerY  = useRef(new Animated.Value(-20)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -81,7 +328,6 @@ export default function MisCitasPaciente() {
     ]).start();
   }, []);
 
-  // Obtener el pacientes.id real (distinto de auth.users.id)
   useEffect(() => {
     if (!user) return;
     supabase.from('pacientes').select('id').eq('perfil_id', user.id).maybeSingle()
@@ -111,27 +357,54 @@ export default function MisCitasPaciente() {
   }, [user, pacienteId]);
 
   useEffect(() => { cargar(); }, [cargar]);
-
   const onRefresh = async () => { setRefreshing(true); await cargar(); setRefreshing(false); };
 
-  const cancelarCita = (cita: Cita) => {
-    Alert.alert('Cancelar cita', `¿Cancelar tu cita del ${cita.fecha}?`, [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Sí, cancelar', style: 'destructive',
-        onPress: async () => {
-          const { error } = await supabase.from('citas').update({ estado: 'cancelada' }).eq('id', cita.id);
-          if (error) { Alert.alert('Error', 'No se pudo cancelar.'); return; }
-          await supabase.from('notificaciones').insert({
-            usuario_id: user!.id, titulo: 'Cita cancelada',
-            mensaje: `Tu cita del ${cita.fecha} a las ${cita.hora_inicio.substring(0, 5)} fue cancelada.`,
-            tipo: 'cancelacion', leido: false, fecha_envio: new Date().toISOString(),
-          });
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          await cargar();
-        },
-      },
-    ]);
+  // ── Cancelar ──
+  const confirmarCancelacion = async (motivo: string) => {
+    if (!citaCancelando) return;
+    setAccionLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/citas/${citaCancelando.id}/cancelar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motivo_cancelacion: motivo || undefined }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message ?? 'No se pudo cancelar');
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setCitaCancelando(null);
+      await cargar();
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'No se pudo cancelar la cita.');
+    } finally {
+      setAccionLoading(false);
+    }
+  };
+
+  // ── Reagendar ──
+  const confirmarReagendado = async (nueva_fecha: string, nueva_hora: string, duracion: number) => {
+    if (!citaReagendando) return;
+    setAccionLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/citas/${citaReagendando.id}/reagendar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nueva_fecha, nueva_hora_inicio: nueva_hora, duracion_cita: duracion }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message ?? 'No se pudo reagendar');
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setCitaReagendando(null);
+      await cargar();
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'No se pudo reagendar la cita.');
+    } finally {
+      setAccionLoading(false);
+    }
   };
 
   const hoy = new Date().toISOString().split('T')[0];
@@ -140,7 +413,6 @@ export default function MisCitasPaciente() {
   if (segmento === 'pasadas')  citasFiltradas = citas.filter(c => c.fecha < hoy);
   if (statusFilt) citasFiltradas = citasFiltradas.filter(c => c.estado === statusFilt);
 
-  // Chips visibles según segmento
   const chipsVisibles = segmento === 'proximas'
     ? STATUS_CHIPS.filter(c => ['pendiente','confirmada'].includes(c.valor))
     : segmento === 'pasadas'
@@ -184,9 +456,7 @@ export default function MisCitasPaciente() {
               onPress={() => changeSegmento(sg.valor, i)}
               activeOpacity={0.8}
             >
-              <Text style={[s.segTxt, segmento === sg.valor && s.segTxtActive]}>
-                {sg.label}
-              </Text>
+              <Text style={[s.segTxt, segmento === sg.valor && s.segTxtActive]}>{sg.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -239,8 +509,29 @@ export default function MisCitasPaciente() {
           </View>
         }
         renderItem={({ item, index }) => (
-          <AnimatedItem cita={item} onCancelar={cancelarCita} index={index} />
+          <AnimatedItem
+            cita={item}
+            onCancelar={c => setCitaCancelando(c)}
+            onReagendar={c => setCitaReagendando(c)}
+            index={index}
+          />
         )}
+      />
+
+      {/* ── MODALES ── */}
+      <CancelarModal
+        cita={citaCancelando}
+        visible={!!citaCancelando}
+        onClose={() => setCitaCancelando(null)}
+        onConfirm={confirmarCancelacion}
+        loading={accionLoading}
+      />
+      <ReagendarModal
+        cita={citaReagendando}
+        visible={!!citaReagendando}
+        onClose={() => setCitaReagendando(null)}
+        onConfirm={confirmarReagendado}
+        loading={accionLoading}
       />
     </View>
   );
@@ -264,24 +555,19 @@ const s = StyleSheet.create({
   },
   nuevaBtnTxt: { color: '#FFF', fontWeight: '700', fontSize: 13 },
 
-  /* Segmented */
   segWrap:  { paddingHorizontal: 20, paddingVertical: 14, backgroundColor: C.bg },
   segTrack: {
     flexDirection: 'row', backgroundColor: C.surface,
-    borderRadius: 14, padding: 3, borderWidth: 1, borderColor: C.border,
-    position: 'relative',
+    borderRadius: 14, padding: 3, borderWidth: 1, borderColor: C.border, position: 'relative',
   },
   segPill: {
     position: 'absolute', top: 3, left: 3, bottom: 3,
     backgroundColor: C.primary, borderRadius: 11,
   },
-  segBtn: {
-    paddingVertical: 9, alignItems: 'center', borderRadius: 11, zIndex: 1,
-  },
+  segBtn:       { paddingVertical: 9, alignItems: 'center', borderRadius: 11, zIndex: 1 },
   segTxt:       { color: C.light, fontSize: 13, fontWeight: '600' },
   segTxtActive: { color: C.bg,    fontWeight: '800' },
 
-  /* Status chips */
   chipsRow: {
     flexDirection: 'row', gap: 8, paddingHorizontal: 20,
     paddingBottom: 12, flexWrap: 'wrap',
@@ -294,10 +580,8 @@ const s = StyleSheet.create({
   chipDot: { width: 6, height: 6, borderRadius: 3 },
   chipTxt: { color: C.muted, fontSize: 12, fontWeight: '600' },
 
-  /* List */
   lista: { padding: 16, paddingBottom: 32 },
 
-  /* Empty */
   empty:       { alignItems: 'center', paddingTop: 64, gap: 12 },
   emptyIconWrap: {
     width: 96, height: 96, borderRadius: 48,
@@ -313,4 +597,87 @@ const s = StyleSheet.create({
     shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6,
   },
   emptyBtnTxt: { color: '#FFF', fontWeight: '700', fontSize: 14 },
+
+  /* ── Modales ── */
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: C.card, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, borderWidth: 1, borderColor: C.border,
+  },
+  modalIconWrap: { alignItems: 'center', marginBottom: 8 },
+  modalTitle:    { color: C.white, fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
+  modalSub:      { color: C.muted, fontSize: 13, textAlign: 'center', marginBottom: 4 },
+  modalDivider:  { height: 1, backgroundColor: C.border, marginVertical: 16 },
+  modalLabel:    { color: C.muted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  modalInput: {
+    backgroundColor: C.surface, borderRadius: 12, padding: 12,
+    color: C.white, fontSize: 14, borderWidth: 1, borderColor: C.border,
+    minHeight: 80, marginBottom: 16,
+  },
+  modalBtns: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  modalBtnSecondary: {
+    flex: 1, paddingVertical: 13, borderRadius: 14, alignItems: 'center',
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+  },
+  modalBtnSecondaryTxt: { color: C.muted, fontSize: 14, fontWeight: '600' },
+  modalBtnDanger: {
+    flex: 2, paddingVertical: 13, borderRadius: 14,
+    backgroundColor: C.error, flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  modalBtnDangerTxt: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+  modalBtnPrimary: {
+    flex: 2, paddingVertical: 13, borderRadius: 14,
+    backgroundColor: C.primary, flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  modalBtnPrimaryTxt: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+
+  /* ── Reagendar ── */
+  reagendarCard: {
+    backgroundColor: C.card, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 32, borderWidth: 1, borderColor: C.border,
+    maxHeight: '85%',
+  },
+  reagendarHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  closeBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: C.surface, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: C.border,
+  },
+  sectionLabel: { color: C.light, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
+
+  dateCard: {
+    width: 60, paddingVertical: 12, backgroundColor: C.surface,
+    borderRadius: 14, alignItems: 'center', gap: 2,
+    borderWidth: 1.5, borderColor: C.border, position: 'relative',
+  },
+  dateCardActive: { borderColor: C.primary, backgroundColor: C.primary + '14' },
+  dateDow: { color: C.light,  fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
+  dateDay: { color: C.white,  fontSize: 20, fontWeight: '800' },
+  dateMon: { color: C.light,  fontSize: 9,  textTransform: 'uppercase' },
+  activeDot: {
+    position: 'absolute', bottom: 5,
+    width: 5, height: 5, borderRadius: 2.5, backgroundColor: C.primary,
+  },
+
+  noSlotsBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: C.surface, borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: C.border, marginBottom: 8,
+  },
+  noSlotsTxt: { color: C.light, fontSize: 13 },
+
+  slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  slotCard: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    width: (width - 48 - 24) / 4,
+    backgroundColor: C.surface, borderRadius: 10, paddingVertical: 11,
+    borderWidth: 1.5, borderColor: C.border,
+  },
+  slotCardActive: { backgroundColor: C.primary, borderColor: C.primary },
+  slotTxt:        { color: C.muted, fontSize: 12, fontWeight: '600' },
 });
