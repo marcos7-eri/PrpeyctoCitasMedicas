@@ -25,6 +25,7 @@ const ia_module_1 = require("./ia/ia.module");
 const historial_medico_module_1 = require("./historial-medico/historial-medico.module");
 const recordatorios_module_1 = require("./recordatorios/recordatorios.module");
 const estadisticas_module_1 = require("./estadisticas/estadisticas.module");
+const events_module_1 = require("./events/events.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -33,6 +34,7 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             config_1.ConfigModule.forRoot({ isGlobal: true }),
             schedule_1.ScheduleModule.forRoot(),
+            events_module_1.EventsModule,
             supabase_module_1.SupabaseModule,
             auth_module_1.AuthModule,
             usuarios_module_1.UsuariosModule,

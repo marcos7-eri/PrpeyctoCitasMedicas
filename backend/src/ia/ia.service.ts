@@ -1,9 +1,51 @@
-import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase/supabase.service';
-import Groq from 'groq-sdk';
+// import type evita el error de isolatedModules con emitDecoratorMetadata:
+// IAIProvider es una interfaz (sin representación en runtime), por lo que
+// TypeScript no puede emitir su metadata como decorador. Con import type,
+// queda solo como anotación de tipo en tiempo de compilación.
+import type { IAIProvider, ChatMessage } from '../interfaces/IAIProvider';
 
-const MODELO = 'llama-3.3-70b-versatile';
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ARQUITECTURA MICROKERNEL APLICADA EN ESTE MÓDULO DE IA
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * El patrón MICROKERNEL (también llamado Plug-in Architecture) separa el
+ * sistema en dos partes:
+ *
+ *   KERNEL (núcleo mínimo) → IaService
+ *     - Gestiona sesiones de chat (chat_sesiones, chat_mensajes en Supabase)
+ *     - Construye el contexto del paciente
+ *     - Orquesta el flujo: recibir mensaje → obtener contexto → delegar a IA
+ *     - NO sabe nada de Groq, OpenAI ni ningún modelo en específico
+ *
+ *   PLUG-IN API (contrato) → IAIProvider (interface)
+ *     - Define qué debe implementar cualquier proveedor de IA
+ *     - Es el "API del kernel" que todos los plug-ins deben cumplir
+ *
+ *   PLUG-IN CONCRETO → GroqProvider (en ./providers/groq.provider.ts)
+ *     - Implementa IAIProvider usando la API de Groq + LLaMA-3.3
+ *     - Puede ser reemplazado por OpenAIProvider o GeminiProvider (OCP + LSP)
+ *
+ * PRINCIPIO OCP (Open/Closed Principle):
+ *   Para agregar soporte a otro modelo de IA, se crea un nuevo plug-in
+ *   que implemente IAIProvider. IaService NO se modifica.
+ *
+ * PRINCIPIO LSP (Liskov Substitution Principle):
+ *   GroqProvider puede ser sustituido por cualquier otro IAIProvider
+ *   sin romper el comportamiento de IaService.
+ *
+ * PRINCIPIO DIP (Dependency Inversion Principle):
+ *   IaService depende de IAIProvider (abstracción), no de Groq (detalle).
+ *   El proveedor concreto es inyectado por NestJS como 'AI_PROVIDER'.
+ *
+ * PRINCIPIO SRP (Single Responsibility Principle):
+ *   IaService solo orquesta el flujo médico del chat.
+ *   GroqProvider solo maneja la comunicación con la API de Groq.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 
 const SISTEMA_PROMPT = `Eres AsistenteMed, un asistente médico virtual en español para una clínica. Tu rol es ayudar a pacientes a entender sus síntomas y orientarlos sobre qué tipo de médico consultar.
 
@@ -33,18 +75,15 @@ Reemplaza los valores: urgencia = "normal" | "urgente" | "emergencia", especiali
 
 @Injectable()
 export class IaService {
-  private groq: Groq;
-
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly configService: ConfigService,
-  ) {
-    this.groq = new Groq({
-      apiKey: this.configService.get<string>('GROQ_API_KEY') ?? '',
-    });
-  }
+    // MICROKERNEL + DIP: se inyecta la abstracción IAIProvider, no Groq directamente.
+    // El token 'AI_PROVIDER' se resuelve en IaModule mediante un factory provider.
+    @Inject('AI_PROVIDER') private readonly aiProvider: IAIProvider,
+  ) {}
 
-  // ─── Sesiones ────────────────────────────────────────────────────────────
+  // ─── Sesiones ─────────────────────────────────────────────────────────────
 
   async iniciarSesion(pacienteId: string) {
     const { data, error } = await this.supabaseService.client
@@ -81,20 +120,12 @@ export class IaService {
     let resumen: string | null = null;
 
     if (mensajes.length >= 2) {
-      try {
-        const texto = mensajes
-          .map((m: any) => `${m.rol === 'usuario' ? 'Paciente' : 'Asistente'}: ${m.contenido}`)
-          .join('\n');
-        const res = await this.groq.chat.completions.create({
-          model: MODELO,
-          max_tokens: 150,
-          messages: [
-            { role: 'system', content: 'Resume consultas médicas en 2-3 líneas en español.' },
-            { role: 'user', content: `Resume esta consulta médica (síntomas, recomendación, urgencia):\n\n${texto}` },
-          ],
-        });
-        resumen = res.choices[0].message.content ?? null;
-      } catch { /* resumen queda null */ }
+      // MICROKERNEL: el kernel delega la generación del resumen al plug-in activo
+      const texto = mensajes
+        .map((m: any) => `${m.rol === 'usuario' ? 'Paciente' : 'Asistente'}: ${m.contenido}`)
+        .join('\n');
+      const resultado = await this.aiProvider.generarResumen(texto);
+      resumen = resultado || null;
     }
 
     const { data, error } = await this.supabaseService.client
@@ -109,6 +140,7 @@ export class IaService {
 
   // ─── Contexto del paciente ────────────────────────────────────────────────
 
+  // SRP: método privado con UNA responsabilidad — construir el contexto clínico del paciente
   private async obtenerContextoPaciente(pacienteId: string): Promise<string> {
     const [{ data: paciente }, { data: historial }, { data: citas }] = await Promise.all([
       this.supabaseService.client
@@ -183,31 +215,15 @@ export class IaService {
 
       const systemPrompt = `${SISTEMA_PROMPT}\n\n${contexto}`;
 
-      // Historial en formato user/assistant (igual que Anthropic)
-      const historial: { role: 'user' | 'assistant'; content: string }[] =
-        (mensajesDB as any[]).slice(-18).map(m => ({
-          role: m.rol === 'usuario' ? 'user' : 'assistant',
-          content: m.contenido as string,
-        }));
+      // Mapear mensajes del formato de BD al formato del IAIProvider (DIP: interfaz agnóstica al proveedor)
+      const historial: ChatMessage[] = (mensajesDB as any[]).slice(-18).map(m => ({
+        rol:      m.rol === 'usuario' ? 'user' : 'assistant',
+        contenido: m.contenido as string,
+      }));
 
-      let fullText: string;
-      try {
-        const res = await this.groq.chat.completions.create({
-          model: MODELO,
-          max_tokens: 450,
-          temperature: 0.7,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...historial,
-            { role: 'user', content: mensaje },
-          ],
-        });
-        fullText = res.choices[0].message.content ?? '';
-      } catch (groqErr: any) {
-        const detail = groqErr?.error?.message || groqErr?.message || 'Error desconocido';
-        console.error('[IA] Groq error:', detail);
-        throw new InternalServerErrorException(`Error IA: ${detail}`);
-      }
+      // MICROKERNEL: el kernel delega la generación de respuesta al plug-in activo (aiProvider)
+      // Si mañana se cambia de Groq a OpenAI, solo cambia el plug-in en IaModule — nada más
+      const fullText = await this.aiProvider.generarRespuesta(historial, systemPrompt, 450);
 
       // Extraer metadata del bloque [META:...]
       const metaMatch = fullText.match(/\[META:(.*?)\]/s);
@@ -219,16 +235,17 @@ export class IaService {
         respuesta = fullText.replace(/\n?\[META:.*?\]/s, '').trim();
       }
 
-      // Guardar mensajes
+      // Guardar mensajes en BD
       await this.supabaseService.client.from('chat_mensajes').insert([
         { sesion_id: sesion.id, rol: 'usuario',    contenido: mensaje },
         {
           sesion_id: sesion.id, rol: 'asistente', contenido: respuesta,
           metadata: {
-            urgencia:             meta.urgencia,
+            urgencia:              meta.urgencia,
             especialidad_sugerida: meta.especialidad,
-            recomienda_agendar:   meta.agendar,
-            es_emergencia:        meta.urgencia === 'emergencia',
+            recomienda_agendar:    meta.agendar,
+            es_emergencia:         meta.urgencia === 'emergencia',
+            proveedor_ia:          this.aiProvider.nombre,  // trazabilidad del plug-in usado
           },
         },
       ]);
@@ -240,6 +257,7 @@ export class IaService {
         especialidad_sugerida: meta.especialidad,
         recomienda_agendar:    meta.agendar,
         es_emergencia:         meta.urgencia === 'emergencia',
+        proveedor_ia:          this.aiProvider.nombre,
       };
     } catch (err: any) {
       if (err instanceof BadRequestException || err instanceof InternalServerErrorException) throw err;

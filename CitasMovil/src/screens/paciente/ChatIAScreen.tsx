@@ -185,7 +185,7 @@ export default function ChatIAScreen() {
           ? data.message.join(', ')
           : data.message || `Error ${res.status} del servidor`;
         setMensajes(prev => [...prev, {
-          id: `e-${Date.now()}`, rol: 'asistente', contenido: `⚠️ Error del servidor:\n${errTexto}`,
+          id: `e-${Date.now()}`, rol: 'asistente', contenido: ` Error del servidor:\n${errTexto}`,
         }]);
         setCargando(false);
         scrollAbajo();
@@ -242,7 +242,7 @@ export default function ChatIAScreen() {
       <View style={s.emptyIcon}>
         <Ionicons name="medkit" size={38} color={C.primary} />
       </View>
-      <Text style={s.emptyTitle}>Asistente Médico IA</Text>
+      <Text style={s.emptyTitle}>Asistente Médico</Text>
       <Text style={s.emptySubtitle}>
         Cuéntame tus síntomas y te orientaré sobre qué especialista consultar.
       </Text>

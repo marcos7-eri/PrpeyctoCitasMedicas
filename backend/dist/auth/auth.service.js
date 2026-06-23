@@ -34,24 +34,21 @@ let AuthService = class AuthService {
             return { user: data.user, session: data.session, perfil: perfilError ? null : perfil };
         }
         catch (err) {
-            if (err instanceof common_1.UnauthorizedException) {
+            if (err instanceof common_1.UnauthorizedException)
                 throw err;
-            }
             throw new common_1.InternalServerErrorException(err.message || 'Error interno del servidor');
         }
     }
     async logout() {
         try {
             const { error } = await this.supabaseService.client.auth.signOut();
-            if (error) {
+            if (error)
                 throw new common_1.BadRequestException(error.message);
-            }
             return { success: true };
         }
         catch (err) {
-            if (err instanceof common_1.BadRequestException) {
+            if (err instanceof common_1.BadRequestException)
                 throw err;
-            }
             throw new common_1.InternalServerErrorException(err.message || 'Error interno del servidor');
         }
     }

@@ -1,40 +1,16 @@
 import { SupabaseService } from '../supabase/supabase.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
-export declare class CitasService {
+import { EventBusService } from '../events/event-bus.service';
+import { ICitasService } from '../interfaces/ICitasService';
+export declare class CitasService implements ICitasService {
     private readonly supabaseService;
     private readonly notificacionesService;
     private readonly auditoriaService;
-    constructor(supabaseService: SupabaseService, notificacionesService: NotificacionesService, auditoriaService: AuditoriaService);
+    private readonly eventBus;
+    constructor(supabaseService: SupabaseService, notificacionesService: NotificacionesService, auditoriaService: AuditoriaService, eventBus: EventBusService);
     private audit;
-    findAll(doctorId?: string, pacienteId?: string): Promise<{
-        id: any;
-        doctor_id: any;
-        paciente_id: any;
-        fecha: any;
-        hora_inicio: any;
-        hora_fin: any;
-        estado: any;
-        motivo: any;
-        notas: any;
-        motivo_cancelacion: any;
-        creado_por: any;
-        creado_en: any;
-        doctores: {
-            perfiles: {
-                nombre_completo: any;
-            }[];
-            especialidades: {
-                nombre: any;
-            }[];
-        }[];
-        pacientes: {
-            perfiles: {
-                nombre_completo: any;
-                correo: any;
-            }[];
-        }[];
-    }[]>;
+    findAll(doctorId?: string, pacienteId?: string): Promise<any[]>;
     create(body: any): Promise<any>;
     update(id: string, body: any): Promise<any>;
     confirmar(id: string): Promise<any>;

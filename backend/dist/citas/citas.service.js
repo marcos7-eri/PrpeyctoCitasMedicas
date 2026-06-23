@@ -14,23 +14,33 @@ const common_1 = require("@nestjs/common");
 const supabase_service_1 = require("../supabase/supabase.service");
 const notificaciones_service_1 = require("../notificaciones/notificaciones.service");
 const auditoria_service_1 = require("../auditoria/auditoria.service");
+const event_bus_service_1 = require("../events/event-bus.service");
+const db_error_handler_1 = require("../common/db-error-handler");
+const cita_events_1 = require("../events/cita.events");
 let CitasService = class CitasService {
     supabaseService;
     notificacionesService;
     auditoriaService;
-    constructor(supabaseService, notificacionesService, auditoriaService) {
+    eventBus;
+    constructor(supabaseService, notificacionesService, auditoriaService, eventBus) {
         this.supabaseService = supabaseService;
         this.notificacionesService = notificacionesService;
         this.auditoriaService = auditoriaService;
+        this.eventBus = eventBus;
     }
     audit(accion, registro_id, detalles) {
-        this.auditoriaService.create({ accion, tabla: 'citas', registro_id, detalles }).catch(() => { });
+        this.auditoriaService
+            .create({ accion, tabla: 'citas', registro_id, detalles })
+            .catch(() => { });
     }
     async findAll(doctorId, pacienteId) {
-        try {
+        return (0, db_error_handler_1.handleDbOperation)(async () => {
             let query = this.supabaseService.client
                 .from('citas')
-                .select('id, doctor_id, paciente_id, fecha, hora_inicio, hora_fin, estado, motivo, notas, motivo_cancelacion, creado_por, creado_en, doctores(perfiles(nombre_completo), especialidades(nombre)), pacientes(perfiles(nombre_completo, correo))')
+                .select('id, doctor_id, paciente_id, fecha, hora_inicio, hora_fin, estado, motivo, notas, ' +
+                'motivo_cancelacion, creado_por, creado_en, ' +
+                'doctores(perfiles(nombre_completo), especialidades(nombre)), ' +
+                'pacientes(perfiles(nombre_completo, correo))')
                 .order('fecha', { ascending: false });
             if (doctorId)
                 query = query.eq('doctor_id', doctorId);
@@ -39,16 +49,11 @@ let CitasService = class CitasService {
             const { data, error } = await query;
             if (error)
                 throw new common_1.BadRequestException(error.message);
-            return data;
-        }
-        catch (err) {
-            if (err instanceof common_1.BadRequestException)
-                throw err;
-            throw new common_1.InternalServerErrorException(err.message || 'Error interno del servidor');
-        }
+            return data ?? [];
+        });
     }
     async create(body) {
-        try {
+        return (0, db_error_handler_1.handleDbOperation)(async () => {
             const { doctor_id, paciente_id, fecha, hora_inicio, hora_fin, motivo, notas, creado_por } = body;
             if (!doctor_id || !paciente_id || !fecha || !hora_inicio) {
                 throw new common_1.BadRequestException('doctor_id, paciente_id, fecha y hora_inicio son requeridos');
@@ -71,16 +76,12 @@ let CitasService = class CitasService {
             if (error)
                 throw new common_1.BadRequestException(error.message);
             this.audit('insert', String(data.id), { doctor_id, paciente_id, fecha, hora_inicio, estado: 'pendiente' });
+            this.eventBus.emit(new cita_events_1.CitaCreadaEvent(String(data.id), doctor_id, paciente_id, fecha));
             return data;
-        }
-        catch (err) {
-            if (err instanceof common_1.BadRequestException)
-                throw err;
-            throw new common_1.InternalServerErrorException(err.message || 'Error interno del servidor');
-        }
+        });
     }
     async update(id, body) {
-        try {
+        return (0, db_error_handler_1.handleDbOperation)(async () => {
             const { estado, motivo, hora_inicio, hora_fin, fecha, notas, motivo_cancelacion } = body;
             const updateData = {};
             if (estado !== undefined)
@@ -103,53 +104,46 @@ let CitasService = class CitasService {
                 throw new common_1.BadRequestException(error.message);
             this.audit('update', id, updateData);
             return data;
-        }
-        catch (err) {
-            if (err instanceof common_1.BadRequestException)
-                throw err;
-            throw new common_1.InternalServerErrorException(err.message || 'Error interno del servidor');
-        }
+        });
     }
     async confirmar(id) {
-        try {
+        return (0, db_error_handler_1.handleDbOperation)(async () => {
             const { data: cita, error: errCita } = await this.supabaseService.client
                 .from('citas')
-                .select(`id, fecha, hora_inicio, estado, pacientes(perfil_id, perfiles(nombre_completo)), doctores(perfiles(nombre_completo))`)
+                .select('id, fecha, hora_inicio, estado, pacientes(perfil_id, perfiles(nombre_completo)), doctores(perfiles(nombre_completo))')
                 .eq('id', id)
                 .single();
             if (errCita || !cita)
                 throw new common_1.BadRequestException(`Cita no encontrada (id=${id})`);
-            if (cita.estado !== 'pendiente')
+            if (cita.estado !== 'pendiente') {
                 throw new common_1.BadRequestException(`La cita tiene estado "${cita.estado}", solo se pueden confirmar citas pendientes`);
+            }
             const { data, error } = await this.supabaseService.client
                 .from('citas').update({ estado: 'confirmada' }).eq('id', id).select().single();
             if (error)
                 throw new common_1.BadRequestException(error.message);
             this.audit('update', id, { estado: 'confirmada' });
             const pacUserId = cita.pacientes?.perfil_id;
+            const docNombre = cita.doctores?.perfiles?.nombre_completo ?? 'Tu doctor';
+            const hora = String(cita.hora_inicio ?? '').substring(0, 5);
+            const fecha = cita.fecha;
             if (pacUserId) {
-                const docNombre = cita.doctores?.perfiles?.nombre_completo ?? 'Tu doctor';
-                const hora = String(cita.hora_inicio ?? '').substring(0, 5);
                 this.notificacionesService.create({
                     usuario_id: pacUserId,
                     titulo: 'Cita confirmada',
-                    mensaje: `${docNombre} confirmó tu cita del ${cita.fecha} a las ${hora}.`,
+                    mensaje: `${docNombre} confirmó tu cita del ${fecha} a las ${hora}.`,
                     tipo: 'confirmacion',
                 }).catch(() => { });
+                this.eventBus.emit(new cita_events_1.CitaConfirmadaEvent(id, pacUserId, docNombre, fecha, hora));
             }
             return data;
-        }
-        catch (err) {
-            if (err instanceof common_1.BadRequestException)
-                throw err;
-            throw new common_1.InternalServerErrorException(err.message || 'Error interno del servidor');
-        }
+        });
     }
     async completar(id) {
-        try {
+        return (0, db_error_handler_1.handleDbOperation)(async () => {
             const { data: cita, error: errCita } = await this.supabaseService.client
                 .from('citas')
-                .select(`id, fecha, hora_inicio, estado, pacientes(perfil_id, perfiles(nombre_completo)), doctores(perfiles(nombre_completo))`)
+                .select('id, fecha, hora_inicio, estado, pacientes(perfil_id, perfiles(nombre_completo)), doctores(perfiles(nombre_completo))')
                 .eq('id', id)
                 .single();
             if (errCita || !cita)
@@ -163,26 +157,23 @@ let CitasService = class CitasService {
                 throw new common_1.BadRequestException(error.message);
             this.audit('update', id, { estado: 'completada' });
             const pacUserId = cita.pacientes?.perfil_id;
+            const docNombre = cita.doctores?.perfiles?.nombre_completo ?? 'Tu doctor';
+            const hora = String(cita.hora_inicio ?? '').substring(0, 5);
+            const fecha = cita.fecha;
             if (pacUserId) {
-                const docNombre = cita.doctores?.perfiles?.nombre_completo ?? 'Tu doctor';
-                const hora = String(cita.hora_inicio ?? '').substring(0, 5);
                 this.notificacionesService.create({
                     usuario_id: pacUserId,
                     titulo: 'Cita completada',
-                    mensaje: `Tu cita con ${docNombre} del ${cita.fecha} a las ${hora} fue marcada como completada.`,
+                    mensaje: `Tu cita con ${docNombre} del ${fecha} a las ${hora} fue marcada como completada.`,
                     tipo: 'confirmacion',
                 }).catch(() => { });
+                this.eventBus.emit(new cita_events_1.CitaCompletadaEvent(id, pacUserId, docNombre, fecha, hora));
             }
             return data;
-        }
-        catch (err) {
-            if (err instanceof common_1.BadRequestException)
-                throw err;
-            throw new common_1.InternalServerErrorException(err.message || 'Error interno del servidor');
-        }
+        });
     }
     async cancelar(id, motivo) {
-        try {
+        return (0, db_error_handler_1.handleDbOperation)(async () => {
             const { data: cita, error: errCita } = await this.supabaseService.client
                 .from('citas')
                 .select(`
@@ -207,26 +198,23 @@ let CitasService = class CitasService {
                 throw new common_1.BadRequestException(error.message);
             this.audit('update', id, { estado: 'cancelada', motivo_cancelacion: motivo || null });
             const doctorUserId = cita.doctores?.perfil_id;
+            const pacNombre = cita.pacientes?.perfiles?.nombre_completo ?? 'Un paciente';
+            const hora = String(cita.hora_inicio ?? '').substring(0, 5);
+            const fecha = cita.fecha;
             if (doctorUserId) {
-                const pacNombre = cita.pacientes?.perfiles?.nombre_completo ?? 'Un paciente';
-                const hora = String(cita.hora_inicio ?? '').substring(0, 5);
                 this.notificacionesService.create({
                     usuario_id: doctorUserId,
                     titulo: 'Cita cancelada por el paciente',
-                    mensaje: `${pacNombre} canceló su cita del ${cita.fecha} a las ${hora}.${motivo ? ` Motivo: ${motivo}` : ''}`,
+                    mensaje: `${pacNombre} canceló su cita del ${fecha} a las ${hora}.${motivo ? ` Motivo: ${motivo}` : ''}`,
                     tipo: 'cancelacion',
                 }).catch(e => console.error('[Citas] Error notif. doctor cancelar:', e?.message));
+                this.eventBus.emit(new cita_events_1.CitaCanceladaEvent(id, doctorUserId, pacNombre, fecha, hora, motivo));
             }
             return data;
-        }
-        catch (err) {
-            if (err instanceof common_1.BadRequestException)
-                throw err;
-            throw new common_1.InternalServerErrorException(err.message || 'Error interno del servidor');
-        }
+        });
     }
     async reagendar(id, nueva_fecha, nueva_hora_inicio, duracion_cita) {
-        try {
+        return (0, db_error_handler_1.handleDbOperation)(async () => {
             if (!nueva_fecha || !nueva_hora_inicio) {
                 throw new common_1.BadRequestException('nueva_fecha y nueva_hora_inicio son requeridos');
             }
@@ -273,35 +261,27 @@ let CitasService = class CitasService {
                 throw new common_1.BadRequestException(error.message);
             this.audit('update', id, { accion: 'reagendar', nueva_fecha, nueva_hora_inicio, estado: 'pendiente' });
             const doctorUserId = cita.doctores?.perfil_id;
+            const pacNombre = cita.pacientes?.perfiles?.nombre_completo ?? 'Un paciente';
             if (doctorUserId) {
-                const pacNombre = cita.pacientes?.perfiles?.nombre_completo ?? 'Un paciente';
                 this.notificacionesService.create({
                     usuario_id: doctorUserId,
                     titulo: 'Cita reagendada por el paciente',
                     mensaje: `${pacNombre} reagendó su cita para el ${nueva_fecha} a las ${nueva_hora_inicio}.`,
                     tipo: 'confirmacion',
                 }).catch(e => console.error('[Citas] Error notif. doctor reagendar:', e?.message));
+                this.eventBus.emit(new cita_events_1.CitaReagendadaEvent(id, doctorUserId, pacNombre, nueva_fecha, nueva_hora_inicio));
             }
             return data;
-        }
-        catch (err) {
-            if (err instanceof common_1.BadRequestException)
-                throw err;
-            throw new common_1.InternalServerErrorException(err.message || 'Error interno del servidor');
-        }
+        });
     }
     async remove(id) {
-        try {
-            const { error } = await this.supabaseService.client.from('citas').delete().eq('id', id);
+        return (0, db_error_handler_1.handleDbOperation)(async () => {
+            const { error } = await this.supabaseService.client
+                .from('citas').delete().eq('id', id);
             if (error)
                 throw new common_1.BadRequestException(error.message);
             return { success: true };
-        }
-        catch (err) {
-            if (err instanceof common_1.BadRequestException)
-                throw err;
-            throw new common_1.InternalServerErrorException(err.message || 'Error interno del servidor');
-        }
+        });
     }
 };
 exports.CitasService = CitasService;
@@ -309,6 +289,7 @@ exports.CitasService = CitasService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [supabase_service_1.SupabaseService,
         notificaciones_service_1.NotificacionesService,
-        auditoria_service_1.AuditoriaService])
+        auditoria_service_1.AuditoriaService,
+        event_bus_service_1.EventBusService])
 ], CitasService);
 //# sourceMappingURL=citas.service.js.map
