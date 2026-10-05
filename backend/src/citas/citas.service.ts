@@ -92,12 +92,33 @@ export class CitasService implements ICitasService {
 
   async create(body: any): Promise<any> {
     return handleDbOperation(async () => {
-      const { doctor_id, paciente_id, fecha, hora_inicio, hora_fin, motivo, notas, creado_por } = body;
+      const { doctor_id, paciente_id, fecha, hora_inicio, hora_fin, motivo, notas, creado_por } = body ?? {};
 
       // SRP: la validación de entrada pertenece a la responsabilidad de este método
       if (!doctor_id || !paciente_id || !fecha || !hora_inicio) {
         throw new BadRequestException('doctor_id, paciente_id, fecha y hora_inicio son requeridos');
       }
+
+      const date = typeof fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fecha)
+        ? new Date(`${fecha}T12:00:00Z`)
+        : null;
+      if (!date || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== fecha) {
+        throw new BadRequestException('fecha debe ser una fecha válida con formato YYYY-MM-DD');
+      }
+      const validTime = (value: unknown): value is string =>
+        typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d(?::00)?$/.test(value);
+      if (!validTime(hora_inicio) || (hora_fin && !validTime(hora_fin))) {
+        throw new BadRequestException('Las horas deben usar HH:mm o HH:mm:00');
+      }
+      if (hora_fin && hora_fin.slice(0, 5) <= hora_inicio.slice(0, 5)) {
+        throw new BadRequestException('hora_fin debe ser posterior a hora_inicio');
+      }
+      const normalizedStart = `${hora_inicio.slice(0, 5)}:00`;
+      const { data: occupied, error: lookupError } = await this.supabaseService.client
+        .from('citas').select('id').eq('doctor_id', doctor_id).eq('fecha', fecha)
+        .eq('hora_inicio', normalizedStart).in('estado', ['pendiente', 'confirmada']).limit(1);
+      if (lookupError) throw new BadRequestException('No se pudo comprobar la disponibilidad');
+      if (occupied?.length) throw new BadRequestException('El horario seleccionado ya está ocupado');
 
       const { data, error } = await this.supabaseService.client
         .from('citas')
@@ -105,7 +126,7 @@ export class CitasService implements ICitasService {
           doctor_id,
           paciente_id,
           fecha,
-          hora_inicio,
+          hora_inicio: normalizedStart,
           hora_fin:   hora_fin   || null,
           motivo:     motivo     || null,
           notas:      notas      || null,
@@ -115,7 +136,7 @@ export class CitasService implements ICitasService {
         .select()
         .single();
 
-      if (error) throw new BadRequestException(error.message);
+      if (error) throw new BadRequestException('No se pudo reservar la cita');
 
       // DRY: centralizado en método privado audit()
       this.audit('insert', String(data.id), { doctor_id, paciente_id, fecha, hora_inicio, estado: 'pendiente' });
