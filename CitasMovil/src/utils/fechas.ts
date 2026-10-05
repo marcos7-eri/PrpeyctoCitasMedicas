@@ -53,19 +53,27 @@ export function getProximas14Dias(): { fecha: string; label: string; dayOfWeek: 
 export function generarSlots(
   horaInicio: string,
   horaFin: string,
-  duracionMinutos: number
+  duracionMinutos: number,
+  esHoy = false,
+  ahora = new Date()
 ): string[] {
   const slots: string[] = [];
+  const validTime = /^([01]\d|2[0-3]):[0-5]\d(?::00)?$/;
+  if (!validTime.test(horaInicio) || !validTime.test(horaFin)
+    || !Number.isInteger(duracionMinutos) || duracionMinutos <= 0) return slots;
   const [h1, m1] = horaInicio.split(':').map(Number);
   const [h2, m2] = horaFin.split(':').map(Number);
 
   let totalMinutes = h1 * 60 + m1;
   const endMinutes = h2 * 60 + m2;
+  const earliest = esHoy ? ahora.getHours() * 60 + ahora.getMinutes() + 30 : 0;
 
   while (totalMinutes + duracionMinutos <= endMinutes) {
     const h = Math.floor(totalMinutes / 60);
     const m = totalMinutes % 60;
-    slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    if (totalMinutes >= earliest) {
+      slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
     totalMinutes += duracionMinutos;
   }
 
