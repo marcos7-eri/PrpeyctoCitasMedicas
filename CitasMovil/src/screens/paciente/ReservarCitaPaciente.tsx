@@ -37,6 +37,7 @@ export default function ReservarCitaPaciente() {
 
   const [paso,         setPaso]         = useState(0);
   const [loading,      setLoading]      = useState(false);
+  const reservando = useRef(false);
   const [loadingData,  setLoadingData]  = useState(false);
   const [pacienteId,    setPacienteId]    = useState<string | null>(null);
   const [especialidades,setEspecialidades]= useState<Especialidad[]>([]);
@@ -151,7 +152,8 @@ export default function ReservarCitaPaciente() {
 
       const h = horarios[0] as Horario;
       setHorarioActivo(h);
-      const all = generarSlots(h.hora_inicio, h.hora_fin, h.duracion_cita);
+      const all = generarSlots(h.hora_inicio, h.hora_fin, h.duracion_cita,
+        fechaObj.fecha === getProximas14Dias()[0].fecha);
       const { data: ocupadas } = await supabase.from('citas').select('hora_inicio')
         .eq('doctor_id', doctor.id).eq('fecha', fechaObj.fecha).in('estado', ['pendiente', 'confirmada']);
       const busy = new Set((ocupadas ?? []).map((c: any) => c.hora_inicio.substring(0, 5)));
@@ -169,13 +171,32 @@ export default function ReservarCitaPaciente() {
   };
 
   const confirmarCita = async () => {
+    if (reservando.current) return;
     if (!user || !doctor || !fechaObj || !horaInicio || !horarioActivo) return;
     if (!pacienteId) {
       Alert.alert('Error', 'No se encontró tu perfil de paciente. Contacta al administrador.');
       return;
     }
+    if (fechaObj.fecha === getProximas14Dias()[0].fecha
+      && !generarSlots(horarioActivo.hora_inicio, horarioActivo.hora_fin,
+        horarioActivo.duracion_cita, true).includes(horaInicio)) {
+      Alert.alert('Hora no disponible', 'Elige otro horario: esta hora ya pasó o está muy próxima.');
+      setHoraInicio('');
+      return;
+    }
+    reservando.current = true;
     setLoading(true);
     try {
+      const { data: ocupadas, error: disponibilidadError } = await supabase.from('citas')
+        .select('id').eq('doctor_id', doctor.id).eq('fecha', fechaObj.fecha)
+        .eq('hora_inicio', horaInicio + ':00').in('estado', ['pendiente', 'confirmada']).limit(1);
+      if (disponibilidadError) throw new Error('No se pudo comprobar la disponibilidad. Intenta de nuevo.');
+      if (ocupadas?.length) {
+        setHoraInicio('');
+        setSlots(prev => prev.filter(slot => slot !== horaInicio));
+        Alert.alert('Horario ocupado', 'Este horario acaba de reservarse. Elige otro.');
+        return;
+      }
       const horaFin = calcularHoraFin(horaInicio, horarioActivo.duracion_cita);
       const { error } = await supabase.from('citas').insert({
         paciente_id: pacienteId,
@@ -238,6 +259,7 @@ export default function ReservarCitaPaciente() {
         [{ text: 'Entendido' }]
       );
     } finally {
+      reservando.current = false;
       setLoading(false);
     }
   };
