@@ -237,8 +237,8 @@ export default function PacientesDoctor() {
                           {entry.recetas.length > 0 && (
                             <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 10, padding: '10px 14px' }}>
                               <div style={{ color: '#A5B4FC', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Recetas</div>
-                              {entry.recetas.map(r => (
-                                <div key={r.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.05)', lastChild: { borderBottom: 'none' } as any }}>
+                              {entry.recetas.map((r, index) => (
+                                <div key={r.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: index < entry.recetas.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
                                   <div style={{ color: '#E2E8F0', fontSize: 13, fontWeight: 600 }}>{r.medicamento}</div>
                                   <div style={{ color: '#94A3B8', fontSize: 12, marginTop: 2 }}>
                                     {[r.dosis, r.frecuencia, r.duracion].filter(Boolean).join(' · ') || '—'}
